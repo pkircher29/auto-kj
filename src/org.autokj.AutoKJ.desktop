@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Auto-KJ
+Comment=Karaoke Hosting Software
+Exec=auto-kj
+Icon=org.autokj.AutoKJ
+Terminal=false
+Categories=AudioVideo;Audio;Player;

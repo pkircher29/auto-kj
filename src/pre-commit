@@ -1,0 +1,50 @@
+#!/bin/bash
+# pre-commit file for autoincrementing the Auto-KJ version header
+# goes in .git/hooks/
+
+versionfile="Auto-KJ/okjversion.h"
+oldmaj=`grep MAJOR $versionfile| cut -d " " -f 3`
+oldmin=`grep MINOR $versionfile| cut -d " " -f 3`
+oldbld=`grep BUILD $versionfile| cut -d " " -f 3`
+branch=`grep BRANCH $versionfile| cut -d " " -f 3`
+newbld=$(($oldbld+1))
+
+rm -f $versionfile
+
+echo "#ifndef OKJVERSION_H" > $versionfile
+echo "#define OKJVERSION_H" >> $versionfile
+echo >> $versionfile
+echo "#define OKJ_VERSION_MAJOR $oldmaj" >> $versionfile
+echo "#define OKJ_VERSION_MINOR $oldmin" >> $versionfile
+echo "#define OKJ_VERSION_BUILD $newbld" >> $versionfile
+echo "#define OKJ_VERSION_STRING \"$oldmaj.$oldmin.$newbld\"" >> $versionfile
+echo "#define OKJ_VERSION_BRANCH $branch" >> $versionfile
+echo >> $versionfile
+echo "#endif //OKJVERSION_H" >> $versionfile
+
+git add Auto-KJ/okjversion.h
+
+sed -i "s/Version:.*/Version:\t$oldmaj.$oldmin.$newbld/" rpm/Auto-KJ.spec
+sed -i "s/Source0:.*/Source0:\tAuto-KJ-$oldmaj.$oldmin.$newbld.tar.bz2/" rpm/Auto-KJ.spec
+git add rpm/Auto-KJ.spec
+
+dch -D xenial -v $oldmaj.$oldmin.$newbld-1~xenial "Autobuild from git tag"
+dch -r "Autobuild from git tag"
+git add ./debian
+
+sed -i "s/version:.*/version: $oldmaj.$oldmin.$newbld/" appveyor.yml
+sed -i "s/  OKJVERSION:.*/  OKJVERSION: $oldmaj.$oldmin.$newbld/" appveyor.yml
+git add appveyor.yml
+
+sed -i "s/#define MyAppVersion.*/#define MyAppVersion \"$oldmaj.$oldmin.$newbld\"/" appveyor/Auto-KJ_x86_64.iss
+sed -i "s/#define MyAppVersion.*/#define MyAppVersion \"$oldmaj.$oldmin.$newbld\"/" appveyor/Auto-KJ_x86.iss
+unix2dos appveyor/Auto-KJ_x86_64.iss
+unix2dos appveyor/Auto-KJ_x86.iss
+git add appveyor/Auto-KJ_x86_64.iss
+git add appveyor/Auto-KJ_x86.iss
+
+sed -i "s/VERSION =.*/VERSION = $oldmaj.$oldmin.$newbld/" Auto-KJ/Auto-KJ.pro
+git add Auto-KJ/Auto-KJ.pro
+
+sed -i "s/  - OKJVER=.*/  - OKJVER=$oldmaj.$oldmin.$newbld/" .travis.yml
+git add .travis.yml

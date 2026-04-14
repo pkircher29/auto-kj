@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DlgStreamingServices</class>
+ <widget class="QDialog" name="DlgStreamingServices">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>900</width><height>640</height></rect>
+  </property>
+  <property name="windowTitle">
+   <string>Streaming Services</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex"><number>0</number></property>
+
+     <!-- ═══════════════════════  SPOTIFY TAB  ══════════════════════════ -->
+     <widget class="QWidget" name="tabSpotify">
+      <attribute name="title"><string>Spotify</string></attribute>
+      <layout class="QVBoxLayout" name="vlSpotify">
+
+       <!-- header row -->
+       <item>
+        <layout class="QHBoxLayout">
+         <item><widget class="QLabel" name="lblSpotifyStatus"><property name="text"><string>● Disconnected</string></property></widget></item>
+         <item><spacer><property name="orientation"><enum>Qt::Horizontal</enum></property></spacer></item>
+         <item>
+          <layout class="QHBoxLayout">
+           <item><widget class="QLabel" name="label"><property name="text"><string>Client ID:</string></property></widget></item>
+           <item><widget class="QLineEdit" name="lineEditSpotifyClientId"><property name="placeholderText"><string>Spotify app Client ID</string></property></widget></item>
+           <item><widget class="QToolButton" name="btnSpotifyHelp"><property name="text"><string>?</string></property></widget></item>
+          </layout>
+         </item>
+         <item><widget class="QPushButton" name="btnSpotifyConnect"><property name="text"><string>Connect</string></property></widget></item>
+        </layout>
+       </item>
+
+       <!-- playlist + track splitter -->
+       <item>
+        <widget class="QSplitter" name="splitterSpotify">
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <widget class="QListWidget" name="listSpotifyPlaylists">
+          <property name="minimumWidth"><number>220</number></property>
+         </widget>
+         <widget class="QTableWidget" name="tableSpotifyTracks">
+          <property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property>
+          <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property>
+          <property name="alternatingRowColors"><bool>true</bool></property>
+          <column><property name="text"><string>Artist</string></property></column>
+          <column><property name="text"><string>Title</string></property></column>
+          <column><property name="text"><string>Album</string></property></column>
+          <column><property name="text"><string>Duration</string></property></column>
+         </widget>
+        </widget>
+       </item>
+
+       <!-- transport -->
+       <item>
+        <layout class="QHBoxLayout">
+         <item><widget class="QPushButton" name="btnSpotifyPrev"><property name="text"><string>⏮</string></property><property name="maximumWidth"><number>40</number></property></widget></item>
+         <item><widget class="QPushButton" name="btnSpotifyPlay"><property name="text"><string>⏯</string></property><property name="maximumWidth"><number>40</number></property></widget></item>
+         <item><widget class="QPushButton" name="btnSpotifyNext"><property name="text"><string>⏭</string></property><property name="maximumWidth"><number>40</number></property></widget></item>
+         <item><widget class="QLabel" name="lblSpotifyNowPlaying"><property name="text"><string>Not playing</string></property></widget></item>
+        </layout>
+       </item>
+
+      </layout>
+     </widget>
+
+     <!-- ═══════════════════════  YOUTUBE MUSIC TAB  ════════════════════ -->
+     <widget class="QWidget" name="tabYtm">
+      <attribute name="title"><string>YouTube Music</string></attribute>
+      <layout class="QVBoxLayout" name="vlYtm">
+
+       <item>
+        <layout class="QHBoxLayout">
+         <item><widget class="QLabel" name="lblYtmStatus"><property name="text"><string>● Disconnected</string></property></widget></item>
+         <item><spacer><property name="orientation"><enum>Qt::Horizontal</enum></property></spacer></item>
+         <item>
+          <layout class="QHBoxLayout">
+           <item><widget class="QLabel" name="lblYtmClientId"><property name="text"><string>Client ID:</string></property></widget></item>
+           <item><widget class="QLineEdit" name="lineEditYtmClientId"><property name="placeholderText"><string>Google app Client ID</string></property></widget></item>
+           <item><widget class="QToolButton" name="btnYtmHelp"><property name="text"><string>?</string></property></widget></item>
+           <item><widget class="QLabel" name="label_2"><property name="text"><string>API Key:</string></property></widget></item>
+           <item><widget class="QLineEdit" name="lineEditYtmApiKey"><property name="placeholderText"><string>YouTube Data API v3 key (optional)</string></property></widget></item>
+          </layout>
+         </item>
+         <item><widget class="QPushButton" name="btnYtmConnect"><property name="text"><string>Open YouTube Music</string></property></widget></item>
+        </layout>
+       </item>
+
+       <item>
+        <widget class="QSplitter" name="splitterYtm">
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <widget class="QListWidget" name="listYtmPlaylists">
+          <property name="minimumWidth"><number>220</number></property>
+         </widget>
+         <widget class="QTableWidget" name="tableYtmTracks">
+          <property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property>
+          <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property>
+          <property name="alternatingRowColors"><bool>true</bool></property>
+          <column><property name="text"><string>Artist</string></property></column>
+          <column><property name="text"><string>Title</string></property></column>
+         </widget>
+        </widget>
+       </item>
+
+       <item>
+        <layout class="QHBoxLayout">
+         <item><widget class="QPushButton" name="btnYtmPrev"><property name="text"><string>⏮</string></property><property name="maximumWidth"><number>40</number></property></widget></item>
+         <item><widget class="QPushButton" name="btnYtmPlay"><property name="text"><string>⏯</string></property><property name="maximumWidth"><number>40</number></property></widget></item>
+         <item><widget class="QPushButton" name="btnYtmNext"><property name="text"><string>⏭</string></property><property name="maximumWidth"><number>40</number></property></widget></item>
+         <item><widget class="QLabel" name="lblYtmNowPlaying"><property name="text"><string>Not playing</string></property></widget></item>
+        </layout>
+       </item>
+
+      </layout>
+     </widget>
+
+     <!-- ═══════════════════════  ITUNES / APPLE MUSIC TAB  ═════════════ -->
+     <widget class="QWidget" name="tabItunes">
+      <attribute name="title"><string>iTunes / Apple Music</string></attribute>
+      <layout class="QVBoxLayout" name="vlItunes">
+
+       <item>
+        <layout class="QHBoxLayout">
+         <item><widget class="QLabel" name="lblItunesStatus"><property name="text"><string>● Disconnected</string></property></widget></item>
+         <item><spacer><property name="orientation"><enum>Qt::Horizontal</enum></property></spacer></item>
+         <item><widget class="QPushButton" name="btnItunesConnect"><property name="text"><string>Launch iTunes</string></property></widget></item>
+        </layout>
+       </item>
+
+       <item>
+        <widget class="QSplitter" name="splitterItunes">
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <widget class="QListWidget" name="listItunesPlaylists">
+          <property name="minimumWidth"><number>220</number></property>
+         </widget>
+         <widget class="QTableWidget" name="tableItunesTracks">
+          <property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property>
+          <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property>
+          <property name="alternatingRowColors"><bool>true</bool></property>
+          <column><property name="text"><string>Artist</string></property></column>
+          <column><property name="text"><string>Title</string></property></column>
+          <column><property name="text"><string>Album</string></property></column>
+          <column><property name="text"><string>Duration</string></property></column>
+         </widget>
+        </widget>
+       </item>
+
+       <item>
+        <layout class="QHBoxLayout">
+         <item><widget class="QPushButton" name="btnItunesPrev"><property name="text"><string>⏮</string></property><property name="maximumWidth"><number>40</number></property></widget></item>
+         <item><widget class="QPushButton" name="btnItunesPlay"><property name="text"><string>⏯</string></property><property name="maximumWidth"><number>40</number></property></widget></item>
+         <item><widget class="QPushButton" name="btnItunesNext"><property name="text"><string>⏭</string></property><property name="maximumWidth"><number>40</number></property></widget></item>
+         <item><widget class="QLabel" name="lblItunesNowPlaying"><property name="text"><string>Not playing</string></property></widget></item>
+        </layout>
+       </item>
+
+      </layout>
+     </widget>
+
+    </widget>
+   </item>
+
+   <!-- dialog buttons -->
+   <item>
+    <layout class="QHBoxLayout">
+     <item><spacer><property name="orientation"><enum>Qt::Horizontal</enum></property></spacer></item>
+     <item><widget class="QPushButton" name="btnSaveSettings"><property name="text"><string>Save Settings</string></property></widget></item>
+     <item><widget class="QPushButton" name="btnClose"><property name="text"><string>Close</string></property></widget></item>
+    </layout>
+   </item>
+
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>btnClose</sender><signal>clicked()</signal>
+   <receiver>DlgStreamingServices</receiver><slot>accept()</slot>
+   <hints><hint type="sourcelabel"><x>800</x><y>620</y></hint><hint type="destinationlabel"><x>450</x><y>320</y></hint></hints>
+  </connection>
+ </connections>
+</ui>

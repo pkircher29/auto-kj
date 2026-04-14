@@ -1,0 +1,87 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/
+
+# Environment
+.env.local
+.env
+
+# Database
+*.db
+*.sqlite3
+
+# Audio library (large files)
+backend/library/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/apps/*/dist/
+
+# C++ objects and libs
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.dll
+*.dylib
+
+# Qt-specific
+object_script.*.Release
+object_script.*.Debug
+*_plugin_import.cpp
+/.qmake.cache
+/.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+Makefile*
+*build*
+build*
+target_wrapper.*
+*.autosave
+*.qmlproject.user
+*.qmlproject.user.*
+CMakeLists.txt.user*
+CMakeSettings.json
+.vs
+.idea
+
+# Don't include binary
+Auto-KJ/Auto-KJ
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local karaoke media files
+A_Tribe_Called_Quest_I_Left_My_Wallet_in_El_Segundo(MP3+CDG_Karaoke)_11009460 (1).zip
+A_Tribe_Called_Quest_I_Left_My_Wallet_in_El_Segundo(MP3+CDG_Karaoke)_11009460.zip
+Ella_Langley_Be_Her(MP3+CDG_Karaoke)_11017204.zip
+Epic_Rap_Battles_of_History_Steve_Jobs_vs_Bill_Gates(MP3+CDG_Karaoke)_11028535.zip
+Labyrinth_Chilly_Down(KFN_karaoke_file)_11026391.kfn
+Lola_Young_Fake(MP3+CDG_Karaoke)_11016416.zip
+celerybeat-schedule
+
+# AI model cache
+~/.cache/demucs/
+~/.cache/whisper/
