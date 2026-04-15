@@ -418,7 +418,7 @@ void AutoKJServerAPI::setAccepting(bool enabled, bool offerEndShowPrompt)
     if (baseUrl.endsWith("/ws/kj"))
         baseUrl.chop(6);
     if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
-        baseUrl = "http://" + baseUrl;
+        baseUrl = "https://" + baseUrl;
 
     QNetworkRequest request(QUrl(baseUrl + QString("/api/v1/kj/venues/%1").arg(venueId)));
     request.setRawHeader("X-Api-Key", apiKey.toUtf8());
@@ -685,9 +685,9 @@ bool AutoKJServerAPI::tryLegacySongDbSync(QString *errorOut)
     if (baseUrl.startsWith("wss://"))
         baseUrl.replace(0, 6, "https://");
     else if (baseUrl.startsWith("ws://"))
-        baseUrl.replace(0, 5, "http://");
+        baseUrl.replace(0, 5, "https://");
     if (!baseUrl.startsWith("http"))
-        baseUrl = "http://" + baseUrl;
+        baseUrl = "https://" + baseUrl;
 
     const int systemId = m_settings.systemId();
     bool modernEndpointMissing = false;
@@ -830,7 +830,7 @@ void AutoKJServerAPI::refreshVenues(bool blocking)
     if (baseUrl.endsWith("/ws/kj"))
         baseUrl.chop(6);
     if (!baseUrl.startsWith("http"))
-        baseUrl = "http://" + baseUrl;
+        baseUrl = "https://" + baseUrl;
 
     QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/venues"));
     request.setRawHeader("X-Api-Key", apiKey.toUtf8());
@@ -942,7 +942,7 @@ bool AutoKJServerAPI::testHttpApiKey(QString *errorOut)
     if (baseUrl.endsWith("/ws/kj"))
         baseUrl.chop(6);
     if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
-        baseUrl = "http://" + baseUrl;
+        baseUrl = "https://" + baseUrl;
 
     QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/venues"));
     request.setRawHeader("X-Api-Key", apiKey.toUtf8());
@@ -998,7 +998,7 @@ QString AutoKJServerAPI::venueUrl() const
     if (base.endsWith("/ws/kj"))
         base.chop(6);
     if (!base.startsWith("http://") && !base.startsWith("https://"))
-        base = "http://" + base;
+        base = "https://" + base;
     const QString slug = m_settings.requestServerVenueSlug().trimmed();
     if (slug.isEmpty())
         return base;
@@ -1014,14 +1014,29 @@ bool AutoKJServerAPI::isConnected() const
 
 void AutoKJServerAPI::onSslErrors(const QList<QSslError> &errors)
 {
-    if (m_settings.requestServerIgnoreCertErrors())
-    {
-        m_socket->ignoreSslErrors();
+    // SECURITY: Only ignore specific expected errors (self-signed certs on local networks)
+    // Never ignore all SSL errors blindly.
+    QList<QSslError> expectedErrors;
+    for (const auto &e : errors) {
+        if (e.error() == QSslError::SelfSignedCertificate ||
+            e.error() == QSslError::SelfSignedCertificateInChain ||
+            e.error() == QSslError::CertificateUntrusted ||
+            e.error() == QSslError::HostNameMismatch) {
+            expectedErrors.append(e);
+        }
+    }
+
+    // Only ignore if ALL errors are in the expected list AND user has opted in
+    if (m_settings.requestServerIgnoreCertErrors() && errors.size() == expectedErrors.size() && !expectedErrors.isEmpty()) {
+        m_socket->ignoreSslErrors(expectedErrors);
         return;
     }
+
+    // Report errors that can't be safely ignored
     QString errorText;
     for (const auto &e : errors)
         errorText += e.errorString() + "\n";
+    qWarning() << "SSL errors (not ignored):" << errorText;
     emit testSslError(errorText);
     emit sslError();
 }
@@ -1049,7 +1064,7 @@ void AutoKJServerAPI::createVenue(const QString &name, const QString &address, c
     if (baseUrl.endsWith("/ws/kj"))
         baseUrl.chop(6);
     if (!baseUrl.startsWith("http"))
-        baseUrl = "http://" + baseUrl;
+        baseUrl = "https://" + baseUrl;
 
     QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/venues"));
     request.setRawHeader("X-Api-Key", apiKey.toUtf8());
@@ -1090,7 +1105,7 @@ bool AutoKJServerAPI::startNewShow(QString *errorOut)
     if (baseUrl.endsWith("/ws/kj"))
         baseUrl.chop(6);
     if (!baseUrl.startsWith("http"))
-        baseUrl = "http://" + baseUrl;
+        baseUrl = "https://" + baseUrl;
 
     QNetworkRequest request(QUrl(baseUrl + QString("/api/v1/kj/venues/%1/gigs/start").arg(venueId)));
     request.setRawHeader("X-Api-Key", apiKey.toUtf8());
@@ -1139,7 +1154,7 @@ bool AutoKJServerAPI::endActiveShow(QString *errorOut)
     if (baseUrl.endsWith("/ws/kj"))
         baseUrl.chop(6);
     if (!baseUrl.startsWith("http"))
-        baseUrl = "http://" + baseUrl;
+        baseUrl = "https://" + baseUrl;
 
     QNetworkRequest listReq(QUrl(baseUrl + QString("/api/v1/kj/venues/%1/gigs").arg(venueId)));
     listReq.setRawHeader("X-Api-Key", apiKey.toUtf8());
