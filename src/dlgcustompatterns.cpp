@@ -65,7 +65,9 @@ void DlgCustomPatterns::btnAddClicked() {
                                          tr("New Pattern"), &ok);
     if (ok && !name.isEmpty()) {
         QSqlQuery query;
-        query.exec("INSERT INTO custompatterns (name) VALUES(\"" + name + "\")");
+        query.prepare("INSERT INTO custompatterns (name) VALUES(:name)");
+        query.bindValue(":name", name);
+        query.exec();
         m_patternsModel.loadFromDB();
     }
 }
@@ -74,7 +76,9 @@ void DlgCustomPatterns::btnDeleteClicked() {
     auto pattern = getSelectedPattern();
     if (pattern) {
         QSqlQuery query;
-        query.exec("DELETE FROM custompatterns WHERE name == \"" + pattern->getName() + "\"");
+        query.prepare("DELETE FROM custompatterns WHERE name = :name");
+        query.bindValue(":name", pattern->getName());
+        query.exec();
         m_patternsModel.loadFromDB();
     }
 }
@@ -91,10 +95,17 @@ void DlgCustomPatterns::btnApplyChangesClicked() {
         tcg = QString::number(ui->spinBoxTitleCaptureGrp->value());
         dcg = QString::number(ui->spinBoxDiscIdCaptureGrp->value());
         name = pattern->getName();
-        query.exec("UPDATE custompatterns SET artistregex = \"" + arx + "\", titleregex = \"" + trx +
-                   "\", discidregex = \"" + drx + \
-                   "\", artistcapturegrp = " + acg + ", titlecapturegrp = " + tcg + ", discidcapturegrp = " + dcg +
-                   " WHERE name = \"" + name + "\"");
+        query.prepare("UPDATE custompatterns SET artistregex = :arx, titleregex = :trx, "
+                      "discidregex = :drx, artistcapturegrp = :acg, titlecapturegrp = :tcg, "
+                      "discidcapturegrp = :dcg WHERE name = :name");
+        query.bindValue(":arx", arx);
+        query.bindValue(":trx", trx);
+        query.bindValue(":drx", drx);
+        query.bindValue(":acg", acg.toInt());
+        query.bindValue(":tcg", tcg.toInt());
+        query.bindValue(":dcg", dcg.toInt());
+        query.bindValue(":name", name);
+        query.exec();
         m_patternsModel.loadFromDB();
     }
 }
