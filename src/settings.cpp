@@ -120,11 +120,13 @@ int Settings::remainBtmOffset()
 
 qint64 Settings::hash(const QString &str)
 {
+    // SECURITY: Upgraded from MD5 to SHA-256 for password hashing
+    // Still truncated to 64 bits for SimpleCrypt key compatibility,
+    // but SHA-256 makes the hash much harder to reverse than MD5
     QByteArray hash = QCryptographicHash::hash(
       QByteArray::fromRawData((const char*)str.utf16(), str.length()*2),
-      QCryptographicHash::Md5
+      QCryptographicHash::Sha256
     );
-    Q_ASSERT(hash.size() == 16);
     QDataStream stream(hash);
     qint64 a, b;
     stream >> a >> b;
@@ -197,7 +199,7 @@ void Settings::setPassword(QString password)
 void Settings::clearPassword()
 {
     settings->remove("pchk");
-    clearCC();
+    // CC data removed (use Stripe)
     clearKNAccount();
 }
 
@@ -219,35 +221,14 @@ bool Settings::passIsSet()
     return false;
 }
 
-void Settings::setCC(QString ccn, QString month, QString year, QString ccv, QString passwd)
-{
-    QString cc = ccn + "," + month + "," + year + "," + ccv;
-    SimpleCrypt simpleCrypt(this->hash(passwd));
-    settings->setValue("cc", simpleCrypt.encryptToString(cc));
-}
-
-void Settings::setSaveCC(bool save)
-{
-    settings->setValue("saveCC", save);
-}
-
-bool Settings::saveCC()
-{
-    return settings->value("saveCC", false).toBool();
-}
-
-void Settings::clearCC()
-{
-    settings->remove("cc");
-}
+// REMOVED: setCC, setSaveCC, saveCC, clearCC — credit card storage removed (use Stripe)
+// REMOVED: getCCN, getCCM, getCCY, getCCV — credit card retrieval removed (use Stripe)
 
 void Settings::clearKNAccount()
 {
     settings->remove("karaokeDotNetUser");
     settings->remove("karaokeDotNetPass");
 }
-
-
 
 void Settings::setSaveKNAccount(bool save)
 {
@@ -276,50 +257,6 @@ bool Settings::hardwareAccelEnabled()
 bool Settings::dbDoubleClickAddsSong()
 {
     return settings->value("dbDoubleClickAddsSong", false).toBool();
-}
-
-QString Settings::getCCN(const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    QString encrypted = settings->value("cc", QString()).toString();
-    if (encrypted == QString())
-        return QString();
-    QString cc = simpleCrypt.decryptToString(encrypted);
-    QStringList parts = cc.split(",");
-    return parts.at(0);
-}
-
-QString Settings::getCCM(const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    QString encrypted = settings->value("cc", QString()).toString();
-    if (encrypted == QString())
-        return QString();
-    QString cc = simpleCrypt.decryptToString(encrypted);
-    QStringList parts = cc.split(",");
-    return parts.at(1);
-}
-
-QString Settings::getCCY(const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    QString encrypted = settings->value("cc", QString()).toString();
-    if (encrypted == QString())
-        return QString();
-    QString cc = simpleCrypt.decryptToString(encrypted);
-    QStringList parts = cc.split(",");
-    return parts.at(2);
-}
-
-QString Settings::getCCV(const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    QString encrypted = settings->value("cc", QString()).toString();
-    if (encrypted == QString())
-        return QString();
-    QString cc = simpleCrypt.decryptToString(encrypted);
-    QStringList parts = cc.split(",");
-    return parts.at(3);
 }
 
 void Settings::setKaroakeDotNetUser(const QString &username, const QString &password)
