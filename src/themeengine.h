@@ -64,13 +64,13 @@ public:
         if (theme == Dark) return true;
         if (theme == Light) return false;
         // System: check system color scheme
-        return QGuiApplication::palette().window().lightness() < 128;
+        return QGuiApplication::palette().window().color().lightness() < 128;
     }
 
 private:
     static void applySystem(QApplication &app) {
         // Detect system preference
-        bool systemIsDark = QGuiApplication::palette().window().lightness() < 128;
+        bool systemIsDark = QGuiApplication::palette().window().color().lightness() < 128;
         if (systemIsDark)
             applyDark(app);
         else

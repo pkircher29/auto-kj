@@ -620,7 +620,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QCoreApplication::setApplicationName("Auto-KJ");
     ui->setupUi(this);
     setMouseTracking(true);
-    m_lazyDurationUpdater = std::make_unique<LazyDurationUpdateController>(this);
+    // LazyDurationUpdateController removed
     ui->tableViewBmPlaylist->setMouseTracking(true);
     m_historyTabWidget = ui->tabWidgetQueue->widget(1);
     ui->actionShow_Debug_Log->setChecked(m_settings.logShow());
@@ -742,8 +742,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_dlgRegularSingers.regularsChanged();
     m_dlgRegularSingers.setModal(false);
     updateRotationDuration();
-    if (m_settings.dbLazyLoadDurations())
-        m_lazyDurationUpdater->getDurations();
+    // LazyDurationUpdate removed — durations load inline
     ui->labelVolume->setPixmap(QIcon::fromTheme("player-volume").pixmap(QSize(22, 22)));
     ui->labelVolumeBm->setPixmap(QIcon::fromTheme("player-volume").pixmap(QSize(22, 22)));
     updateIcons();
@@ -957,8 +956,7 @@ void MainWindow::setupConnections() {
         m_rotModel.layoutChanged();
     });
     connect(&m_songbookApi, &AutoKJServerClient::venuesChanged, this, &MainWindow::onVenuesChanged);
-    connect(m_lazyDurationUpdater.get(), &LazyDurationUpdateController::gotDuration, &m_karaokeSongsModel,
-            &TableModelKaraokeSongs::setSongDuration);
+    // LazyDurationUpdate signal removed — durations load inline
     connect(ui->tableViewRotation->selectionModel(), &QItemSelectionModel::selectionChanged, this,
             &MainWindow::rotationSelectionChanged);
     connect(ui->tableViewQueue->selectionModel(), &QItemSelectionModel::selectionChanged, this, &MainWindow::tableViewQueueSelChanged);
@@ -1756,7 +1754,7 @@ MainWindow::~MainWindow() {
 #ifdef _MSC_VER
     timeEndPeriod(1);
 #endif
-    m_lazyDurationUpdater->stopWork();
+    // LazyDurationUpdate removed
     m_settings.bmSetVolume(ui->sliderBmVolume->value());
     m_settings.setAudioVolume(ui->sliderVolume->value());
     m_logger->info("{} Saving volumes - K: {} BM {}", m_loggingPrefix, m_settings.audioVolume(), m_settings.bmVolume());
@@ -1788,16 +1786,11 @@ void MainWindow::databaseUpdated() {
     autosizeViews();
     m_settings.restoreColumnWidths(ui->tableViewDB);
     requestsDialog->databaseUpdateComplete();
-    m_lazyDurationUpdater->stopWork();
-    m_lazyDurationUpdater->deleteLater();
-    m_lazyDurationUpdater = std::make_unique<LazyDurationUpdateController>(this);
-    connect(m_lazyDurationUpdater.get(), &LazyDurationUpdateController::gotDuration, &m_karaokeSongsModel,
-            &TableModelKaraokeSongs::setSongDuration);
-    m_lazyDurationUpdater->getDurations();
+    // LazyDurationUpdate removed — durations load inline
 }
 
 void MainWindow::databaseCleared() {
-    m_lazyDurationUpdater->stopWork();
+    // LazyDurationUpdate removed
     m_karaokeSongsModel.loadData();
     m_rotModel.loadData();
     m_qModel.loadSinger(-1);
@@ -3718,6 +3711,7 @@ void MainWindow::filesDroppedOnQueue(const QList<QUrl> &urls, const int &singerI
                         dFileInfo.completeBaseName().toLower(),
                         "!!DROPPED!!",
                         "!!dropped!!",
+                        "",
                         0,
                         dFileInfo.fileName(),
                         file,

@@ -519,6 +519,7 @@ set(SOURCE_FILES
         src/dlgeq.cpp
         src/audiofader.cpp
         src/customlineedit.cpp
+        src/tickernew.cpp
         src/updatechecker.cpp
         src/videodisplay.cpp
         src/dlgaddsinger.cpp
@@ -576,8 +577,10 @@ set(SOURCE_FILES
         src/dlgeq.h
         src/audiofader.h
         src/customlineedit.h
+        src/tickernew.h
         src/updatechecker.h
         src/videodisplay.h
+        src/volslider.h
         src/okjversion.h
         src/dlgaddsinger.h
         src/simplecrypt.h

@@ -58,7 +58,6 @@
 #include "dlgaddsinger.h"
 #include "dlgstreamingservices.h"
 
-#include "durationlazyupdater.h"
 #include "dlgvideopreview.h"
 #include "src/models/tablemodelhistorysongs.h"
 #include "src/models/tablemodelplaylistsongs.h"
@@ -162,7 +161,6 @@ private:
     QShortcut m_scutDeleteSong{nullptr};
     QShortcut m_scutDeletePlSong{nullptr};
     QShortcut m_scutPreview{this};
-    std::unique_ptr<LazyDurationUpdateController> m_lazyDurationUpdater;
     std::unique_ptr<QTemporaryDir> m_mediaTempDir;
 
     std::unique_ptr<UpdateChecker> m_updateChecker;
