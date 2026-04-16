@@ -158,9 +158,9 @@ private:
     QShortcut m_scutLoadRegularSinger{this};
     QShortcut m_scutRequests{this};
     QShortcut m_scutToggleSingerWindow{this};
-    QShortcut m_scutDeleteSinger{nullptr};
-    QShortcut m_scutDeleteSong{nullptr};
-    QShortcut m_scutDeletePlSong{nullptr};
+    QShortcut m_scutDeleteSinger{this};
+    QShortcut m_scutDeleteSong{this};
+    QShortcut m_scutDeletePlSong{this};
     QShortcut m_scutPreview{this};
     std::unique_ptr<LazyDurationUpdateController> m_lazyDurationUpdater;
     std::unique_ptr<QTemporaryDir> m_mediaTempDir;
