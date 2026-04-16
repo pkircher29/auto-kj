@@ -197,8 +197,7 @@ void Settings::setPassword(QString password)
 void Settings::clearPassword()
 {
     settings->remove("pchk");
-    clearCC();
-    clearKNAccount();
+    // CC and KDN data removed (use Stripe)
 }
 
 bool Settings::chkPassword(QString password)
@@ -219,45 +218,9 @@ bool Settings::passIsSet()
     return false;
 }
 
-void Settings::setCC(QString ccn, QString month, QString year, QString ccv, QString passwd)
-{
-    QString cc = ccn + "," + month + "," + year + "," + ccv;
-    SimpleCrypt simpleCrypt(this->hash(passwd));
-    settings->setValue("cc", simpleCrypt.encryptToString(cc));
-}
-
-void Settings::setSaveCC(bool save)
-{
-    settings->setValue("saveCC", save);
-}
-
-bool Settings::saveCC()
-{
-    return settings->value("saveCC", false).toBool();
-}
-
-void Settings::clearCC()
-{
-    settings->remove("cc");
-}
-
-void Settings::clearKNAccount()
-{
-    settings->remove("karaokeDotNetUser");
-    settings->remove("karaokeDotNetPass");
-}
-
-
-
-void Settings::setSaveKNAccount(bool save)
-{
-    settings->setValue("saveKNAccount", save);
-}
-
-bool Settings::saveKNAccount()
-{
-    return settings->value("saveKNAccount", false).toBool();
-}
+// REMOVED: setCC, setSaveCC, saveCC, clearCC - credit card storage removed, use Stripe
+// REMOVED: clearKNAccount, setSaveKNAccount, saveKNAccount - karaokeDotNet removed
+// REMOVED: setKaroakeDotNetUser, setKaraokeDotNetPass, karoakeDotNetUser, karoakeDotNetPass
 
 bool Settings::testingEnabled()
 {
@@ -278,81 +241,8 @@ bool Settings::dbDoubleClickAddsSong()
     return settings->value("dbDoubleClickAddsSong", false).toBool();
 }
 
-QString Settings::getCCN(const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    QString encrypted = settings->value("cc", QString()).toString();
-    if (encrypted == QString())
-        return QString();
-    QString cc = simpleCrypt.decryptToString(encrypted);
-    QStringList parts = cc.split(",");
-    return parts.at(0);
-}
-
-QString Settings::getCCM(const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    QString encrypted = settings->value("cc", QString()).toString();
-    if (encrypted == QString())
-        return QString();
-    QString cc = simpleCrypt.decryptToString(encrypted);
-    QStringList parts = cc.split(",");
-    return parts.at(1);
-}
-
-QString Settings::getCCY(const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    QString encrypted = settings->value("cc", QString()).toString();
-    if (encrypted == QString())
-        return QString();
-    QString cc = simpleCrypt.decryptToString(encrypted);
-    QStringList parts = cc.split(",");
-    return parts.at(2);
-}
-
-QString Settings::getCCV(const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    QString encrypted = settings->value("cc", QString()).toString();
-    if (encrypted == QString())
-        return QString();
-    QString cc = simpleCrypt.decryptToString(encrypted);
-    QStringList parts = cc.split(",");
-    return parts.at(3);
-}
-
-void Settings::setKaroakeDotNetUser(const QString &username, const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    settings->setValue("karaokeDotNetUser", simpleCrypt.encryptToString(username));
-}
-
-void Settings::setKaraokeDotNetPass(const QString &KDNPassword, const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    settings->setValue("karaokeDotNetPass", simpleCrypt.encryptToString(KDNPassword));
-}
-
-QString Settings::karoakeDotNetUser(const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    QString encrypted = settings->value("karaokeDotNetUser", QString()).toString();
-    if (encrypted == QString())
-        return QString();
-    QString username = simpleCrypt.decryptToString(encrypted);
-    return username;
-}
-
-QString Settings::karoakeDotNetPass(const QString &password)
-{
-    SimpleCrypt simpleCrypt(this->hash(password));
-    QString encrypted = settings->value("karaokeDotNetPass", QString()).toString();
-    if (encrypted == QString())
-        return QString();
-    QString KDNpassword = simpleCrypt.decryptToString(encrypted);
-    return KDNpassword;
-}
+// REMOVED: CC storage functions (getCCN/getCCM/getCCY/getCCV/setCC) — use Stripe
+// REMOVED: KaraokeDotNet functions (setKaroakeDotNetUser/setKaraokeDotNetPass/etc) — dead code, broken crypto
 
 Settings::Settings(QObject *parent) :
     QObject(parent)

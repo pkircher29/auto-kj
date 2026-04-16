@@ -92,24 +92,13 @@ public:
     void clearPassword();
     bool chkPassword(QString password);
     bool passIsSet();
-    void setCC(QString ccn, QString month, QString year, QString ccv, QString passwd);
-    void setSaveCC(bool save);
-    bool saveCC();
-    void clearCC();
-    void clearKNAccount();
-    void setSaveKNAccount(bool save);
-    bool saveKNAccount();
+    // REMOVED: setCC, setSaveCC, saveCC, clearCC — credit card storage removed, use Stripe
+    // REMOVED: getCCN/getCCM/getCCY/getCCV — credit card retrieval removed, use Stripe
+    // REMOVED: clearKNAccount, setSaveKNAccount, saveKNAccount — karaokeDotNet removed
+    // REMOVED: setKaroakeDotNetUser, setKaraokeDotNetPass, karoakeDotNetUser, karoakeDotNetPass
     bool testingEnabled();
     bool hardwareAccelEnabled();
     bool dbDoubleClickAddsSong();
-    QString getCCN(const QString &password);
-    QString getCCM(const QString &password);
-    QString getCCY(const QString &password);
-    QString getCCV(const QString &password);
-    void setKaroakeDotNetUser(const QString &username, const QString &password);
-    void setKaraokeDotNetPass(const QString &KDNPassword, const QString &password);
-    QString karoakeDotNetUser(const QString &password);
-    QString karoakeDotNetPass(const QString &password);
     enum BgMode { BG_MODE_IMAGE = 0, BG_MODE_SLIDESHOW };
     enum PreviewSize { Small, Medium, Large };
     explicit Settings(QObject *parent = 0);
