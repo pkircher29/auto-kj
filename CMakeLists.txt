@@ -519,22 +519,16 @@ set(SOURCE_FILES
         src/dlgeq.cpp
         src/audiofader.cpp
         src/customlineedit.cpp
-        src/tickernew.cpp
         src/updatechecker.cpp
         src/videodisplay.cpp
-        src/volslider.cpp
         src/dlgaddsinger.cpp
         src/simplecrypt.cpp
-        src/dlgsetpassword.cpp
-        src/dlgpassword.cpp
-        src/dlgpurchaseprogress.cpp
         src/karaokefileinfo.cpp
         src/karaokefilepatternresolver.cpp
         src/custompattern.cpp
         src/dlgeditsong.cpp
         src/soundfxbutton.cpp
         src/runguard/runguard.cpp
-        src/durationlazyupdater.cpp
         src/idledetect.cpp
         src/testing/autokjserverclientmock.cpp
         src/mainwindow.h
@@ -582,16 +576,11 @@ set(SOURCE_FILES
         src/dlgeq.h
         src/audiofader.h
         src/customlineedit.h
-        src/tickernew.h
         src/updatechecker.h
         src/videodisplay.h
-        src/volslider.h
         src/okjversion.h
         src/dlgaddsinger.h
         src/simplecrypt.h
-        src/dlgsetpassword.h
-        src/dlgpassword.h
-        src/dlgpurchaseprogress.h
         src/karaokefileinfo.h
         src/karaokefilepatternresolver.h
         src/custompattern.h
@@ -599,9 +588,7 @@ set(SOURCE_FILES
         src/soundfxbutton.h
         src/runguard/runguard.h
         src/models/tableviewtooltipfilter.h
-        src/durationlazyupdater.h
         src/idledetect.h
-        src/testing/autokjserverclientmock.h
         src/mainwindow.ui
         src/dlgaddsong.ui
         src/dlgkeychange.ui
@@ -619,9 +606,6 @@ set(SOURCE_FILES
         src/dlgbookcreator.ui
         src/dlgeq.ui
         src/dlgaddsinger.ui
-        src/dlgsetpassword.ui
-        src/dlgpassword.ui
-        src/dlgpurchaseprogress.ui
         src/dlgeditsong.ui
         src/dlgvideopreview.ui
         src/resources.qrc
