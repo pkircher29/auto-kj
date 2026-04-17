@@ -168,7 +168,7 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     spinMaxSingers->setValue(m_settings.maxSingersPerRequest());
     hlayMax->addWidget(spinMaxSingers);
     hlayMax->addStretch();
-    ui->groupBoxRequestServer->layout()->addItem(hlayMax);
+    qobject_cast<QBoxLayout*>(ui->groupBoxRequestServer->layout())->addLayout(hlayMax);
     connect(spinMaxSingers, qOverload<int>(&QSpinBox::valueChanged),
             &m_settings, &Settings::setMaxSingersPerRequest);
     connect(spinMaxSingers, qOverload<int>(&QSpinBox::valueChanged),
@@ -196,7 +196,7 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     spinNoShow->setValue(m_settings.noShowTimeoutSeconds());
     hlayNoShow->addWidget(spinNoShow);
     hlayNoShow->addStretch();
-    ui->groupBoxRequestServer->layout()->addItem(hlayNoShow);
+    qobject_cast<QBoxLayout*>(ui->groupBoxRequestServer->layout())->addLayout(hlayNoShow);
     connect(spinNoShow, qOverload<int>(&QSpinBox::valueChanged), &m_settings, &Settings::setNoShowTimeoutSeconds);
 
     auto hlayKjBuffer = new QHBoxLayout;
@@ -206,7 +206,7 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     spinKjBuffer->setValue(m_settings.kjBufferSeconds());
     hlayKjBuffer->addWidget(spinKjBuffer);
     hlayKjBuffer->addStretch();
-    ui->groupBoxRequestServer->layout()->addItem(hlayKjBuffer);
+    qobject_cast<QBoxLayout*>(ui->groupBoxRequestServer->layout())->addLayout(hlayKjBuffer);
     connect(spinKjBuffer, qOverload<int>(&QSpinBox::valueChanged), &m_settings, &Settings::setKjBufferSeconds);
 
     auto cbxGeofenceEnabled = new QCheckBox("Enable Geofence (Venue Radius)", this);
@@ -222,7 +222,7 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     spinGeoRadius->setValue(m_settings.venueGeofenceRadius());
     hlayGeoRadius->addWidget(spinGeoRadius);
     hlayGeoRadius->addStretch();
-    ui->groupBoxRequestServer->layout()->addItem(hlayGeoRadius);
+    qobject_cast<QBoxLayout*>(ui->groupBoxRequestServer->layout())->addLayout(hlayGeoRadius);
     connect(spinGeoRadius, qOverload<double>(&QDoubleSpinBox::valueChanged), &m_settings, &Settings::setVenueGeofenceRadius);
 
     ui->lineEditApiKey->setText(m_settings.requestServerApiKey());
