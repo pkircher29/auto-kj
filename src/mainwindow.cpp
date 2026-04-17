@@ -3718,6 +3718,7 @@ void MainWindow::filesDroppedOnQueue(const QList<QUrl> &urls, const int &singerI
                         dFileInfo.completeBaseName().toLower(),
                         "!!DROPPED!!",
                         "!!dropped!!",
+                        "",
                         0,
                         dFileInfo.fileName(),
                         file,
