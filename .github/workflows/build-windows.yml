@@ -28,7 +28,7 @@ jobs:
       - name: Install GStreamer
         shell: powershell
         run: |
-          $gstVersion = "1.22.11"
+          $gstVersion = "1.22.12"
           $gstFile = "gstreamer-1.0-msvc-x86_64-$gstVersion.msi"
           $gstUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$gstVersion/msvc/$gstFile"
           Invoke-WebRequest -Uri $gstUrl -OutFile $gstFile
