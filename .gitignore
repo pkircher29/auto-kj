@@ -54,6 +54,10 @@ ui_*.h
 Makefile*
 *build*
 build*
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
+!.github/workflows/*.yaml
 target_wrapper.*
 *.autosave
 *.qmlproject.user
