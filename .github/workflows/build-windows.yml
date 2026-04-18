@@ -28,7 +28,12 @@ jobs:
       - name: Install GStreamer
         shell: powershell
         run: |
-          choco install gstreamer --no-progress -y
+          $gstUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.28.2/msvc/gstreamer-1.0-msvc-x86_64-1.28.2.exe"
+          curl.exe -L --retry 3 --max-time 300 -o gstreamer-installer.exe $gstUrl
+          if ((Get-Item gstreamer-installer.exe).Length -lt 1MB) {
+            throw "GStreamer installer download appears incomplete ($((Get-Item gstreamer-installer.exe).Length) bytes)"
+          }
+          Start-Process -FilePath "gstreamer-installer.exe" -ArgumentList "/S" -Wait
           if (!(Test-Path "C:\gstreamer\1.0\msvc_x86_64\bin")) {
             throw "GStreamer install path not found at C:\gstreamer\1.0\msvc_x86_64\bin"
           }
