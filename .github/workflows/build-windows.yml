@@ -31,10 +31,18 @@ jobs:
           $gstVersion = "1.22.12"
           $gstFile = "gstreamer-1.0-msvc-x86_64-$gstVersion.msi"
           $gstUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$gstVersion/msvc/$gstFile"
-          Invoke-WebRequest -Uri $gstUrl -OutFile $gstFile
+          curl.exe -L --retry 3 -A "Mozilla/5.0" -o $gstFile $gstUrl
           Start-Process msiexec.exe -ArgumentList '/i', "$PWD\$gstFile", '/quiet', '/norestart' -Wait
           if (!(Test-Path "C:\gstreamer\1.0\msvc_x86_64\bin")) {
             throw "GStreamer install path not found at C:\gstreamer\1.0\msvc_x86_64\bin"
+          }
+
+      - name: Install OpenSSL 1.1
+        shell: powershell
+        run: |
+          choco install openssl --version=1.1.1.2100 --no-progress -y
+          if (!(Test-Path "C:\Program Files\OpenSSL-Win64\bin\libssl-1_1-x64.dll")) {
+            throw "OpenSSL 1.1 DLLs not found after install"
           }
 
       - name: Setup MSVC
