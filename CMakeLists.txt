@@ -858,6 +858,32 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
             else ()
                 message("Can't find windeployqt")
             endif ()
+
+            # Copy OpenSSL 1.1 runtime DLLs required by Qt 5.15 for HTTPS/TLS.
+            # Look in Qt bin dir first, then the default OpenSSL Win64 install location.
+            foreach(_ssl_dll "libssl-1_1-x64.dll" "libcrypto-1_1-x64.dll")
+                set(_ssl_found FALSE)
+                foreach(_ssl_dir "${qt5_install_prefix}/bin" "C:/Program Files/OpenSSL-Win64/bin")
+                    if(EXISTS "${_ssl_dir}/${_ssl_dll}")
+                        add_custom_command(
+                            TARGET auto-kj POST_BUILD
+                            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                                "${_ssl_dir}/${_ssl_dll}"
+                                "$<TARGET_FILE_DIR:auto-kj>/${_ssl_dll}"
+                        )
+                        message(STATUS "OpenSSL: will copy ${_ssl_dll} from ${_ssl_dir}")
+                        set(_ssl_found TRUE)
+                        break()
+                    endif()
+                endforeach()
+                if(NOT _ssl_found)
+                    message(WARNING
+                        "OpenSSL 1.1 DLL not found: ${_ssl_dll}. "
+                        "TLS/HTTPS will fail at runtime. "
+                        "Install Win64 OpenSSL 1.1 from https://slproweb.com/products/Win32OpenSSL.html "
+                        "or run: winget install ShiningLight.OpenSSL.Light")
+                endif()
+            endforeach()
         else ()
             message("QT_INSTALL_DIR not defined")
         endif ()

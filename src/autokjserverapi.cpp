@@ -944,6 +944,11 @@ bool AutoKJServerAPI::testHttpApiKey(QString *errorOut)
     if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
         baseUrl = "https://" + baseUrl;
 
+    if (baseUrl.startsWith("https://") && !QSslSocket::supportsSsl()) {
+        if (errorOut) *errorOut = "TLS is not available. Install the required OpenSSL runtime and restart Auto-KJ.";
+        return false;
+    }
+
     QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/venues"));
     request.setRawHeader("X-Api-Key", apiKey.toUtf8());
     QNetworkReply *reply = m_nam->get(request);

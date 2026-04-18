@@ -67,13 +67,17 @@ foreach ($dll in $OpenSslNames) {
     }
     if (-not $copied) {
         $MissingOpenSsl += $dll
-        Write-Warning "$dll not found. This Qt 5.15.2 build requires the OpenSSL 1.1 runtime for HTTPS/TLS."
     }
 }
 
 if ($MissingOpenSsl.Count -gt 0) {
     $missingList = $MissingOpenSsl -join ", "
-    throw "Missing required OpenSSL 1.1 runtime DLL(s): $missingList. Install OpenSSL 1.1 x64 and rerun packaging."
+    Write-Host ""
+    Write-Host "Missing OpenSSL 1.1 runtime DLL(s): $missingList" -ForegroundColor Red
+    Write-Host "Qt 5.15.2 requires OpenSSL 1.1 for HTTPS/TLS. Install it with:" -ForegroundColor Yellow
+    Write-Host "  winget install ShiningLight.OpenSSL.Light" -ForegroundColor Cyan
+    Write-Host "Then rerun this script." -ForegroundColor Yellow
+    throw "Packaging aborted: missing OpenSSL 1.1 runtime."
 }
 
 # 7. Collect Assets (Fonts, Redist)
