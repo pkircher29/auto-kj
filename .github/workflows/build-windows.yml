@@ -28,14 +28,9 @@ jobs:
       - name: Install GStreamer
         shell: powershell
         run: |
-          $gstUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.28.2/msvc/gstreamer-1.0-msvc-x86_64-1.28.2.exe"
-          curl.exe -L --retry 3 --max-time 300 -o gstreamer-installer.exe $gstUrl
-          if ((Get-Item gstreamer-installer.exe).Length -lt 1MB) {
-            throw "GStreamer installer download appears incomplete ($((Get-Item gstreamer-installer.exe).Length) bytes)"
-          }
-          Start-Process -FilePath "gstreamer-installer.exe" -ArgumentList "/S" -Wait
-          if (!(Test-Path "C:\gstreamer\1.0\msvc_x86_64\bin")) {
-            throw "GStreamer install path not found at C:\gstreamer\1.0\msvc_x86_64\bin"
+          choco install gstreamer --no-progress -y
+          if (!(Test-Path "C:\Program Files\gstreamer\1.0\msvc_x86_64\bin")) {
+            throw "GStreamer install path not found"
           }
 
       - name: Install OpenSSL 1.1
@@ -57,7 +52,7 @@ jobs:
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
             "-DDEPLOY_DEPS=ON" `
             "-DQT_INSTALL_PREFIX=$env:Qt5_DIR\..\..\.." `
-            "-DGST_BASE_PATH=C:\gstreamer\1.0\msvc_x86_64"
+            "-DGST_BASE_PATH=C:\Program Files\gstreamer\1.0\msvc_x86_64"
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -68,7 +63,7 @@ jobs:
           $releaseDir = "build\Release"
           & "$env:Qt5_DIR\bin\windeployqt.exe" --release --no-translations "$releaseDir\auto-kj.exe"
 
-          $gstBin = "C:\gstreamer\1.0\msvc_x86_64\bin"
+          $gstBin = "C:\Program Files\gstreamer\1.0\msvc_x86_64\bin"
           Copy-Item "$gstBin\*.dll" -Destination $releaseDir -Force
 
           $openSslNames = @(
