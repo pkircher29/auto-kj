@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Auto-KJ"
-#define MyAppVersion "0.5.0"
+#define MyAppVersion "2.1.39-unstable"
 #define MyAppPublisher "Auto-KJ Project"
 #define MyAppURL "https://auto-kj.com/"
 #define MyAppExeName "auto-kj.exe"
@@ -23,7 +23,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 LicenseFile=output\LICENSE.txt
-OutputBaseFilename=Auto-KJ-0.5-Setup
+OutputBaseFilename=Auto-KJ-Windows-x64-Setup
 Compression=lzma
 SolidCompression=yes
 UninstallDisplayName=Auto-KJ
@@ -47,8 +47,6 @@ Source: "output\SourceCodePro-Medium.ttf"; DestDir: "{fonts}"; FontInstall: "Sou
 
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
-[InstallDelete]
-Type: filesandordirs; Name: "{app}\*"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

@@ -42,7 +42,41 @@ Write-Step "Collecting GStreamer DLLs..."
 $GstBin = "$GStreamerPath\bin"
 Get-ChildItem -Path $GstBin -Filter "*.dll" | Copy-Item -Destination $OutputDir -Force
 
-# 6. Collect Assets (Fonts, Redist)
+# 6. Collect OpenSSL DLLs for Qt Network/TLS
+Write-Step "Collecting OpenSSL DLLs..."
+$OpenSslNames = @(
+    "libssl-1_1-x64.dll",
+    "libcrypto-1_1-x64.dll"
+)
+$OpenSslSearchDirs = @(
+    "$QtPath\bin",
+    "C:\Program Files\OpenSSL-Win64\bin"
+)
+
+$MissingOpenSsl = @()
+foreach ($dll in $OpenSslNames) {
+    $copied = $false
+    foreach ($dir in $OpenSslSearchDirs) {
+        $candidate = Join-Path $dir $dll
+        if (Test-Path $candidate) {
+            Copy-Item $candidate $OutputDir -Force
+            Write-Host "Collected $dll from $dir"
+            $copied = $true
+            break
+        }
+    }
+    if (-not $copied) {
+        $MissingOpenSsl += $dll
+        Write-Warning "$dll not found. This Qt 5.15.2 build requires the OpenSSL 1.1 runtime for HTTPS/TLS."
+    }
+}
+
+if ($MissingOpenSsl.Count -gt 0) {
+    $missingList = $MissingOpenSsl -join ", "
+    throw "Missing required OpenSSL 1.1 runtime DLL(s): $missingList. Install OpenSSL 1.1 x64 and rerun packaging."
+}
+
+# 7. Collect Assets (Fonts, Redist)
 Write-Step "Collecting Assets..."
 $Fonts = @(
     "Roboto-Bold.ttf",
@@ -69,12 +103,12 @@ if ($RedistPath) {
     Write-Warning "vc_redist.x64.exe not found in $VSPath"
 }
 
-# 7. Collect License
+# 8. Collect License
 if (Test-Path "LICENSE") {
     Copy-Item "LICENSE" "$OutputDir\LICENSE.txt" -Force
 }
 
-# 8. Final Installer Generation
+# 9. Final Installer Generation (64-bit only)
 Write-Step "Generating Installer..."
 $InnoPaths = @(
     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
