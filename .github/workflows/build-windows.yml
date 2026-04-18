@@ -28,9 +28,10 @@ jobs:
       - name: Install GStreamer
         shell: powershell
         run: |
-          $gsUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.24.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.0.msi"
-          Invoke-WebRequest -Uri $gsUrl -OutFile gstreamer.msi
-          Start-Process msiexec.exe -ArgumentList '/i', "$PWD\gstreamer.msi", '/quiet', '/norestart' -Wait
+          choco install gstreamer --version=1.24.0 --no-progress -y
+          if (!(Test-Path "C:\gstreamer\1.0\msvc_x86_64\bin")) {
+            throw "GStreamer install path not found at C:\gstreamer\1.0\msvc_x86_64\bin"
+          }
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
