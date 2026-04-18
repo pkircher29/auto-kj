@@ -851,9 +851,9 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
             find_program(WINDEPLOYQT windeployqt HINTS ${qt5_install_prefix} PATH_SUFFIXES bin)
             if (WINDEPLOYQT)
                 add_custom_command(
-                        TARGET auto-kj
+                        TARGET auto-kj POST_BUILD
                         COMMAND "${WINDEPLOYQT}"
-                        ARGS "${CMAKE_BINARY_DIR}\\auto-kj.exe"
+                        ARGS "$<TARGET_FILE:auto-kj>"
                 )
             else ()
                 message("Can't find windeployqt")
