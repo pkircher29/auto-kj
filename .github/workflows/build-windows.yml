@@ -30,8 +30,11 @@ jobs:
         run: |
           $gstVersion = "1.22.12"
           $gstFile = "gstreamer-1.0-msvc-x86_64-$gstVersion.msi"
-          $gstUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$gstVersion/msvc/$gstFile"
-          curl.exe -L --retry 3 -A "Mozilla/5.0" -o $gstFile $gstUrl
+          $gstUrl = "https://github.com/GStreamer/gstreamer/releases/download/$gstVersion/$gstFile"
+          curl.exe -L --retry 3 -o $gstFile $gstUrl
+          if ((Get-Item $gstFile).Length -lt 1MB) {
+            throw "GStreamer MSI download appears incomplete ($($(Get-Item $gstFile).Length) bytes)"
+          }
           Start-Process msiexec.exe -ArgumentList '/i', "$PWD\$gstFile", '/quiet', '/norestart' -Wait
           if (!(Test-Path "C:\gstreamer\1.0\msvc_x86_64\bin")) {
             throw "GStreamer install path not found at C:\gstreamer\1.0\msvc_x86_64\bin"
