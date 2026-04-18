@@ -888,11 +888,10 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
             message("QT_INSTALL_DIR not defined")
         endif ()
         add_custom_command(
-                TARGET auto-kj
-                COMMAND "xcopy"
-                ARGS "${GST_BASE_PATH_NATIVE}\\*" "/s" "/y"
-                COMMAND "xcopy"
-                ARGS "${GST_BASE_PATH_NATIVE}\\bin\\*.dll" "/y"
+                TARGET auto-kj POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${GST_BASE_PATH}/bin"
+                    "$<TARGET_FILE_DIR:auto-kj>"
         )
     endif ()
 endif ()
