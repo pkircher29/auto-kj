@@ -25,7 +25,15 @@ jobs:
           arch: 'win64_msvc2019_64'
           modules: 'qtwebengine'
 
+      - name: Cache GStreamer
+        id: cache-gstreamer
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\gstreamer
+          key: gstreamer-1.26.9-msvc-x86_64
+
       - name: Install GStreamer
+        if: steps.cache-gstreamer.outputs.cache-hit != 'true'
         shell: powershell
         run: |
           choco install gstreamer --no-progress -y --ignore-checksums
