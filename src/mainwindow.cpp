@@ -3663,11 +3663,11 @@ void MainWindow::newVersionAvailable(const QString &version) {
     }
     if (m_updateChecker->getOS() == "Win32" || m_updateChecker->getOS() == "Win64") {
         msgBox.setInformativeText(
-                "You can download the new version at <a href=https://Auto-KJ.org/software>https://Auto-KJ.org/software</a>");
+                "You can download the new version at <a href=https://auto-kj.com>https://auto-kj.com</a>");
     }
     if (m_updateChecker->getOS() == "MacOS") {
         msgBox.setInformativeText(
-                "You can download the new version at <a href=https://Auto-KJ.org/software>https://Auto-KJ.org/software</a>");
+                "You can download the new version at <a href=https://auto-kj.com>https://auto-kj.com</a>");
     }
     msgBox.exec();
 }
