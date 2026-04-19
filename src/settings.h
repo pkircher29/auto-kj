@@ -142,8 +142,12 @@ public:
     void setRequestServerUrl(QString url);
     int requestServerVenue();
     void setRequestServerVenue(int venueId);
-    QString requestServerApiKey();
-    void setRequestServerApiKey(QString apiKey);
+    QString requestServerEmail() const;
+    void setRequestServerEmail(const QString &email);
+    QString requestServerPassword() const;
+    void setRequestServerPassword(const QString &password);
+    QString requestServerToken() const;
+    void setRequestServerToken(const QString &token);
     bool requestServerIgnoreCertErrors();
     void setRequestServerIgnoreCertErrors(bool ignore);
     // AutoKJ Server settings (venue slug replaces numeric venue ID; token replaces API key)

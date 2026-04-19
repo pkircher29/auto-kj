@@ -252,15 +252,15 @@ QJsonDocument DlgManageVenuesGigs::requestJson(
     if (errorOut)
         errorOut->clear();
 
-    const QString apiKey = m_settings.requestServerApiKey();
-    if (apiKey.isEmpty()) {
+    const QString token = m_settings.requestServerToken();
+    if (token.isEmpty()) {
         if (errorOut)
-            *errorOut = "API key is not set.";
+            *errorOut = "Not logged in. Please configure your email and password in settings.";
         return {};
     }
 
     QNetworkRequest request(QUrl(baseHttpUrl() + path));
-    request.setRawHeader("X-Api-Key", apiKey.toUtf8());
+    request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     QNetworkReply *reply = nullptr;

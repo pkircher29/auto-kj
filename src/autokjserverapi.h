@@ -138,6 +138,7 @@ private:
     bool m_updateInProgress{false};
     bool m_testInProgress{false};
     int m_reconnectIntervalSecs{5};
+    QString m_token;
 
     OkjsRequests m_requests;
 
@@ -150,7 +151,10 @@ private:
     void handleEvent(const QString &event, const QJsonObject &data);
     void processNewRequest(const QJsonObject &reqData);
     void processPendingRequests(const QJsonArray &reqArray);
-    bool testHttpApiKey(QString *errorOut = nullptr);
+    bool login(QString *errorOut = nullptr);
+    QString ensureToken(QString *errorOut = nullptr);
+    void setAuthHeader(QNetworkRequest &request, const QString &token);
+    bool testHttpAuth(QString *errorOut = nullptr);
     bool tryLegacySongDbSync(QString *errorOut = nullptr);
 };
 

@@ -827,16 +827,36 @@ void Settings::setRequestServerVenue(int venueId)
     emit requestServerVenueChanged(venueId);
 }
 
-QString Settings::requestServerApiKey()
+QString Settings::requestServerEmail() const
 {
-    return settings->value("requestServerApiKey","").toString().trimmed();
+    return settings->value("requestServerEmail", "").toString().trimmed();
 }
 
-void Settings::setRequestServerApiKey(QString apiKey)
+void Settings::setRequestServerEmail(const QString &email)
 {
-    settings->setValue("requestServerApiKey", apiKey.trimmed());
-    // Force re-authorization whenever credentials change.
-    setPremiumAntiChaosAuthorized(false);
+    settings->setValue("requestServerEmail", email.trimmed());
+    settings->remove("requestServerToken");
+}
+
+QString Settings::requestServerPassword() const
+{
+    return settings->value("requestServerPassword", "").toString();
+}
+
+void Settings::setRequestServerPassword(const QString &password)
+{
+    settings->setValue("requestServerPassword", password);
+    settings->remove("requestServerToken");
+}
+
+QString Settings::requestServerToken() const
+{
+    return settings->value("requestServerToken", "").toString();
+}
+
+void Settings::setRequestServerToken(const QString &token)
+{
+    settings->setValue("requestServerToken", token);
 }
 
 bool Settings::requestServerIgnoreCertErrors()
@@ -1894,8 +1914,8 @@ void Settings::setFairnessEnabled(bool enabled) {
 
 bool Settings::antiChaosPremiumEnabled() const {
     const bool serverEnabled = settings->value("requestServerEnabled", true).toBool();
-    const bool hasApiKey = !settings->value("requestServerApiKey", "").toString().trimmed().isEmpty();
-    return serverEnabled && hasApiKey && premiumAntiChaosAuthorized();
+    const bool hasCredentials = !settings->value("requestServerEmail", "").toString().trimmed().isEmpty();
+    return serverEnabled && hasCredentials && premiumAntiChaosAuthorized();
 }
 
 bool Settings::premiumAntiChaosAuthorized() const {
