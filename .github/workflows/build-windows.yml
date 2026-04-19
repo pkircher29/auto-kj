@@ -116,8 +116,8 @@ jobs:
       - name: Build installer
         shell: powershell
         run: |
-          New-Item -ItemType Directory -Force -Path "cd\output" | Out-Null
-          Copy-Item "release\*" -Destination "cd\output\" -Recurse -Force
+          New-Item -ItemType Directory -Force -Path "cd\Output" | Out-Null
+          Copy-Item "release\*" -Destination "cd\Output\" -Recurse -Force
           choco install innosetup --no-progress -y
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "cd\auto-kj64.iss"
 
