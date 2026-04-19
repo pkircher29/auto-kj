@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Qt 5.15.2
         uses: jurplel/install-qt-action@v4
@@ -38,7 +38,7 @@ jobs:
           }
 
       - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@v2
         with:
           arch: amd64
 
@@ -113,13 +113,13 @@ jobs:
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "cd\auto-kj64.iss"
 
       - name: Upload portable bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Auto-KJ-Windows-x64-portable
           path: Auto-KJ-Windows-x64.zip
 
       - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Auto-KJ-Windows-x64-installer
           path: cd/Output/*.exe
