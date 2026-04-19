@@ -6,30 +6,48 @@ This document describes the full stack as of v0.5.1, including the request serve
 
 ## Overview
 
-Auto-KJ is composed of four parts that work together:
+A single VPS hosts **one nginx** fronting **five subdomains** and **two backend services**:
 
 ```
-┌──────────────────────┐       ┌────────────────────────────────────┐
-│   Desktop App        │       │         api.auto-kj.com            │
-│   (C++/Qt)           │──────▶│  ┌──────────────────────────────┐  │
-│                      │       │  │  FastAPI backend  (port 8001) │  │
-│  - Rotation engine   │       │  │  Singer requests, queue mgmt  │  │
-│  - Fairness engine   │       │  │  OAuth2 Bearer token auth     │  │
-│  - Karaoke playback  │       │  └──────────────────────────────┘  │
-│  - Settings dialog   │       │  ┌──────────────────────────────┐  │
-│  - Registration dlg  │       │  │  License server   (port 3001) │  │
-└──────────────────────┘       │  │  Stripe checkout, license mgmt│  │
-                               │  │  Coupon code redemption       │  │
-                               │  └──────────────────────────────┘  │
-                               └────────────────────────────────────┘
-                                             ▲
-                               ┌─────────────┴───────────────────────┐
-                               │   auto-kj.com  (Astro static site)  │
-                               │   Registration, checkout, pricing   │
-                               └─────────────────────────────────────┘
+                  ┌─────────────────────────────────────────────────────────┐
+                  │              nginx (HTTPS, Let's Encrypt)                │
+                  └─────────────────────────────────────────────────────────┘
+                     │             │             │            │           │
+          auto-kj.com│  api.*      │  singer.*   │  dj.*      │  kiosk.*  │
+          (marketing)│  (APIs)     │  (PWA)      │  (PWA)     │  (display)│
+                     ▼             ▼             ▼            ▼           ▼
+          /var/www/auto-kj/    ┌──────────┐   /opt/autokjpro/frontend/dist/
+          dist/                │  routes  │         singer/  dashboard/  kiosk/
+          (Astro static)       │          │         (all 3 talk to /api/ + /ws/)
+                               │ /api/v1/ │◀─┐
+                               │ → 3001   │  │
+                               │          │  │
+                               │ /api/    │  │
+                               │ /ws/     │  │
+                               │ → 8001   │  │
+                               └──────────┘  │
+                                             │
+  ┌──────────────────────┐                   │
+  │   Desktop App        │───────────────────┘  (email/password → Bearer)
+  │   (C++/Qt)           │  api.auto-kj.com/api/...   (FastAPI, port 8001)
+  └──────────────────────┘
+
+  Two PM2 backends:
+    auto-kj-license  — Node.js/Express (port 3001)  → Stripe, licenses, coupons
+    api              — Python/FastAPI  (port 8001)  → KJ/singer/queue logic
 ```
 
-Nginx reverse-proxies both ports behind HTTPS at `api.auto-kj.com`.
+### Subdomain map
+
+| Subdomain | Serves | Backend |
+|-----------|--------|---------|
+| `auto-kj.com` / `www.auto-kj.com` | Marketing site (Astro static) | none (static files) |
+| `api.auto-kj.com` | Two APIs multiplexed by path: `/api/v1/*` → license server, `/api/*` & `/ws/*` → FastAPI | license server + FastAPI |
+| `singer.auto-kj.com` | Singer PWA (singers scan QR, request songs) | `/api/` + `/ws/` → FastAPI |
+| `dj.auto-kj.com` | KJ Dashboard PWA (web-based rotation view) | `/api/` + `/ws/` → FastAPI |
+| `kiosk.auto-kj.com` | Kiosk Display (now-playing, upcoming singers) | `/api/` + `/ws/` → FastAPI |
+
+**Path multiplexing on `api.auto-kj.com`:** `location ^~ /api/v1/` (license server) takes priority over `location /api/` (FastAPI), so both APIs coexist on the same hostname.
 
 ---
 
@@ -123,7 +141,11 @@ webhook_events   -- Stripe webhook idempotency log
 
 ---
 
-## 4. Website (`auto-kj-website-review/`)
+## 4. Frontend Apps
+
+Four separate frontends, each deployed as static files and served by nginx:
+
+### 4a. Marketing site (`auto-kj-website-review/` → `auto-kj.com`)
 
 **Framework:** Astro (static site)  
 **Deployed:** `/var/www/auto-kj/dist/` via `scp` after `npm run build`
@@ -153,6 +175,31 @@ User clicks pricing button
        → Redirect to Stripe Checkout URL
        → Stripe webhook fulfills → license key emailed
 ```
+
+### 4b. Singer PWA (`singer.auto-kj.com`)
+
+Mobile-first web app for singers. Scan a QR code at the venue → open the PWA → browse songbook, request songs, see your position in the rotation, get notified when you're up.
+
+- **Deployed:** `/opt/autokjpro/frontend/dist/singer/`
+- **Talks to:** FastAPI (`/api/` REST + `/ws/` WebSocket for live updates)
+- **Served as:** SPA with `try_files $uri $uri/ /index.html` fallback
+
+### 4c. KJ Dashboard (`dj.auto-kj.com`)
+
+Web-based KJ dashboard — an alternative/supplement to the desktop app for monitoring a show remotely or from a tablet. Shows rotation, queue, active singers, and allows request approval.
+
+- **Deployed:** `/opt/autokjpro/frontend/dist/dashboard/`
+- **Talks to:** FastAPI (`/api/` + `/ws/`)
+- **Auth:** Same KJ credentials as the desktop app (email/password → Bearer token)
+
+### 4d. Kiosk Display (`kiosk.auto-kj.com`)
+
+Big-screen display for the venue: shows now-playing, who's up next, the current rotation. Typically loaded on a dedicated screen or TV in the bar.
+
+- **Deployed:** `/opt/autokjpro/frontend/dist/kiosk/`
+- **Talks to:** FastAPI (`/api/` + `/ws/` — read-only, live updates)
+
+All three PWAs are built from the `/opt/autokjpro/frontend/` source tree (separate build targets for `singer`, `dashboard`, `kiosk`).
 
 ---
 
