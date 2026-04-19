@@ -1,6 +1,7 @@
 #include "dlgregister.h"
 #include "ui_dlgregister.h"
 
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkRequest>
