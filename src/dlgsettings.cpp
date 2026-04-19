@@ -20,6 +20,7 @@
 
 #include "dlgsettings.h"
 #include "ui_dlgsettings.h"
+#include "dlgregister.h"
 #include <QGuiApplication>
 #include <QDesktopWidget>
 #include <QFontDialog>
@@ -770,6 +771,16 @@ void DlgSettings::on_lineEditEmail_editingFinished() {
 
 void DlgSettings::on_lineEditPassword_editingFinished() {
     m_settings.setRequestServerPassword(ui->lineEditPassword->text());
+}
+
+void DlgSettings::on_btnCreateAccount_clicked() {
+    DlgRegister dlg(m_settings, this);
+    if (dlg.exec() == QDialog::Accepted) {
+        m_settings.setRequestServerEmail(dlg.registeredEmail());
+        m_settings.setRequestServerPassword(dlg.registeredPassword());
+        ui->lineEditEmail->setText(dlg.registeredEmail());
+        ui->lineEditPassword->setText(dlg.registeredPassword());
+    }
 }
 
 void DlgSettings::on_checkBoxShowKAAAlert_toggled(bool checked) {

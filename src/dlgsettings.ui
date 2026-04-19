@@ -1081,14 +1081,30 @@ QPushButton:default {
                    </property>
                   </widget>
                  </item>
-                 <item row="4" column="0">
+                 <item row="4" column="1">
+                  <widget class="QPushButton" name="btnCreateAccount">
+                   <property name="toolTip">
+                    <string>Create a new Auto-KJ account</string>
+                   </property>
+                   <property name="text">
+                    <string>No account? Create one…</string>
+                   </property>
+                   <property name="flat">
+                    <bool>true</bool>
+                   </property>
+                   <property name="styleSheet">
+                    <string>QPushButton { color: palette(link); text-align: left; padding: 0; border: none; font-size: 11px; }</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="5" column="0">
                   <widget class="QLabel" name="label_30">
                    <property name="text">
                     <string>System ID</string>
                    </property>
                   </widget>
                  </item>
-                 <item row="4" column="1">
+                 <item row="5" column="1">
                   <layout class="QHBoxLayout" name="horizontalLayout_2">
                    <property name="rightMargin">
                     <number>20</number>
@@ -1118,14 +1134,14 @@ QPushButton:default {
                    </item>
                   </layout>
                  </item>
-                 <item row="5" column="0">
+                 <item row="6" column="0">
                   <widget class="QLabel" name="label_22">
                    <property name="text">
                     <string>Interval</string>
                    </property>
                   </widget>
                  </item>
-                 <item row="5" column="1">
+                 <item row="6" column="1">
                   <layout class="QHBoxLayout" name="horizontalLayout_15">
                    <property name="rightMargin">
                     <number>50</number>
@@ -1164,7 +1180,7 @@ QPushButton:default {
                    </item>
                   </layout>
                  </item>
-                 <item row="6" column="1">
+                 <item row="7" column="1">
                   <layout class="QHBoxLayout" name="horizontalLayout_20">
                    <property name="leftMargin">
                     <number>0</number>
