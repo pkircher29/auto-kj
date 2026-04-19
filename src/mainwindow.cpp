@@ -1242,6 +1242,10 @@ void MainWindow::setupConnections() {
     
     m_venueTb->setVisible(m_settings.requestServerEnabled());
     connect(&m_settings, &Settings::requestServerEnabledChanged, m_venueTb, &QToolBar::setVisible);
+    connect(&m_settings, &Settings::requestServerEnabledChanged, this, [this]() { m_songbookApi.reconfigureFromSettings(); });
+    connect(&m_settings, &Settings::requestServerUrlChanged, this, [this]() { m_songbookApi.reconfigureFromSettings(); });
+    connect(&m_settings, &Settings::requestServerCredentialsChanged, this, [this]() { m_songbookApi.reconfigureFromSettings(); });
+    connect(&m_settings, &Settings::requestServerVenueChanged, this, [this]() { m_songbookApi.reconfigureFromSettings(); });
     connect(&m_settings, &Settings::venueConfigChanged, &m_songbookApi, &AutoKJServerClient::pushVenueConfig);
     connect(&m_settings, &Settings::gigSettingsChanged, &m_songbookApi, &AutoKJServerClient::pushGigSettings);
 
@@ -1362,10 +1366,6 @@ void MainWindow::onVenueSelected(int index) {
     int venueId = m_comboBoxVenue->itemData(index).toInt();
     m_settings.setRequestServerVenue(venueId);
     m_settings.setRequestServerVenueSlug(m_comboBoxVenue->itemData(index, Qt::UserRole + 1).toString());
-    // Re-authenticate so the server switches to the newly-selected venue
-    if (m_songbookApi.isConnected())
-        m_songbookApi.authenticate();
-    m_songbookApi.refreshVenues(true);
     if (m_checkBoxAcceptingRequests) {
         m_checkBoxAcceptingRequests->blockSignals(true);
         m_checkBoxAcceptingRequests->setChecked(m_songbookApi.getAccepting());

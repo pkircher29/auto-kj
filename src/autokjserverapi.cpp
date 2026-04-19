@@ -66,11 +66,7 @@ AutoKJServerAPI::AutoKJServerAPI(QObject *parent) : AutoKJServerClient(parent)
 
     m_reconnectTimer->setInterval(m_reconnectIntervalSecs * 1000);
     m_settings.setPremiumAntiChaosAuthorized(false);
-
-    if (m_settings.requestServerEnabled()) {
-        refreshVenues();
-        connectToServer();
-    }
+    reconfigureFromSettings(true);
 }
 
 AutoKJServerAPI::~AutoKJServerAPI()
@@ -88,6 +84,8 @@ AutoKJServerAPI::~AutoKJServerAPI()
 
 void AutoKJServerAPI::connectToServer()
 {
+    if (!m_reconnectEnabled)
+        return;
     if (m_socket->state() != QAbstractSocket::UnconnectedState)
         return;
 
@@ -118,6 +116,90 @@ void AutoKJServerAPI::connectToServer()
     m_socket->open(QUrl(url));
 }
 
+void AutoKJServerAPI::clearSessionState()
+{
+    const bool wasConnected = m_authenticated;
+    m_authenticated = false;
+    m_accepting = false;
+    m_cancelUpdate = false;
+    m_updateInProgress = false;
+    m_testInProgress = false;
+    m_songSyncTimer->stop();
+    m_songSyncTimeoutTimer->stop();
+    m_testTimer->stop();
+    m_settings.setPremiumAntiChaosAuthorized(false);
+
+    if (!m_requests.isEmpty()) {
+        m_requests.clear();
+        emit requestsChanged(m_requests);
+    }
+
+    if (wasConnected)
+        emit connectionStatusChanged(false);
+}
+
+void AutoKJServerAPI::disconnectFromServer(bool clearSessionStateFlag)
+{
+    m_reconnectTimer->stop();
+    if (clearSessionStateFlag)
+        clearSessionState();
+
+    if (m_socket->state() == QAbstractSocket::UnconnectedState)
+        return;
+
+    m_suppressReconnectOnce = true;
+    m_reconfigureInProgress = true;
+    m_socket->abort();
+    m_reconfigureInProgress = false;
+}
+
+void AutoKJServerAPI::reconfigureFromSettings(bool force)
+{
+    const bool enabled = m_settings.requestServerEnabled();
+    const QString serverUrl = m_settings.requestServerUrl().trimmed();
+    const QString email = m_settings.requestServerEmail().trimmed();
+    const QString password = m_settings.requestServerPassword();
+    const QString token = m_settings.requestServerToken().trimmed();
+    const int venueId = m_settings.requestServerVenue();
+
+    if (!force && enabled == m_reconnectEnabled && serverUrl == m_lastServerUrl &&
+        email == m_lastEmail && password == m_lastPassword && token == m_lastToken &&
+        venueId == m_lastVenueId) {
+        return;
+    }
+
+    const bool endpointChanged = force || serverUrl != m_lastServerUrl ||
+        email != m_lastEmail || password != m_lastPassword || token != m_lastToken;
+    const bool venueChanged = force || venueId != m_lastVenueId;
+
+    m_reconnectEnabled = enabled;
+    m_lastServerUrl = serverUrl;
+    m_lastEmail = email;
+    m_lastPassword = password;
+    m_lastToken = token;
+    m_lastVenueId = venueId;
+
+    if (!enabled) {
+        disconnectFromServer(true);
+        return;
+    }
+
+    if (endpointChanged) {
+        m_token.clear();
+        disconnectFromServer(true);
+    } else if (venueChanged) {
+        clearSessionState();
+    }
+
+    refreshVenues();
+
+    if (m_socket->state() == QAbstractSocket::ConnectedState) {
+        authenticate();
+    } else {
+        connectToServer();
+    }
+}
+
 void AutoKJServerAPI::onConnected()
 {
     qDebug("[AutoKJ] WebSocket connected");
@@ -127,9 +209,13 @@ void AutoKJServerAPI::onConnected()
 
 void AutoKJServerAPI::onDisconnected()
 {
-    m_authenticated = false;
-    m_settings.setPremiumAntiChaosAuthorized(false);
-    emit connectionStatusChanged(false);
+    clearSessionState();
+    if (m_suppressReconnectOnce) {
+        m_suppressReconnectOnce = false;
+        return;
+    }
+    if (!m_reconnectEnabled || m_reconfigureInProgress)
+        return;
     qDebug("[AutoKJ] Disconnected â€” reconnecting in %ds", m_reconnectIntervalSecs);
     m_reconnectTimer->start();
 }
@@ -241,6 +327,7 @@ void AutoKJServerAPI::handleEvent(const QString &event, const QJsonObject &data)
         m_settings.setPremiumAntiChaosAuthorized(true);
         emit connectionStatusChanged(true);
         emit synchronized(QTime::currentTime());
+        refreshVenues();
         if (m_testInProgress) {
             m_testInProgress = false;
             m_testTimer->stop();
@@ -481,9 +568,24 @@ void AutoKJServerAPI::setAccepting(bool enabled, bool offerEndShowPrompt)
         }
     }
 
-    Q_UNUSED(offerEndShowPrompt);
-    // Toggling Accept Requests off no longer ends the show — the show keeps
-    // running until the KJ explicitly clicks End Show.
+    if (ok && !enabled && offerEndShowPrompt) {
+        QMessageBox::StandardButton btn = QMessageBox::question(
+            nullptr,
+            "End Show?",
+            "Requests are now turned off for this venue.\n\nDo you want to end the active show as well?",
+            QMessageBox::Yes | QMessageBox::No
+        );
+        if (btn == QMessageBox::Yes) {
+            QString endErr;
+            if (!endActiveShow(&endErr)) {
+                QMessageBox::warning(
+                    nullptr,
+                    "End Show Failed",
+                    endErr.isEmpty() ? "Could not end the active show." : endErr
+                );
+            }
+        }
+    }
 
     if (ok) {
         refreshVenues(true);
@@ -860,7 +962,11 @@ void AutoKJServerAPI::test()
 {
     m_testInProgress = true;
 
+<<<<<<< Updated upstream
     // Preferred path for AutoKJ-Pro backend: validate token over HTTP first.
+=======
+    // Preferred path for Auto-KJ Pro backend: validate API key over HTTP first.
+>>>>>>> Stashed changes
     // This avoids failing the test when /ws/kj is not implemented on the server.
     QString httpErr;
     if (testHttpAuth(&httpErr)) {
@@ -956,11 +1062,6 @@ bool AutoKJServerAPI::login(QString *errorOut)
 
     m_token = token;
     m_settings.setRequestServerToken(token);
-
-    const QString apiKey = doc.object().value("api_key").toString();
-    if (!apiKey.isEmpty())
-        m_settings.setRequestServerApiKey(apiKey);
-
     if (errorOut) errorOut->clear();
     return true;
 }
@@ -981,13 +1082,7 @@ QString AutoKJServerAPI::ensureToken(QString *errorOut)
 
 void AutoKJServerAPI::setAuthHeader(QNetworkRequest &request, const QString &token)
 {
-    // KJ desktop endpoints authenticate via X-Api-Key. The Bearer token is kept
-    // for backwards compatibility with anything that still expects JWT.
-    const QString apiKey = m_settings.requestServerApiKey();
-    if (!apiKey.isEmpty())
-        request.setRawHeader("X-Api-Key", apiKey.toUtf8());
-    if (!token.isEmpty())
-        request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
+    request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 }
 
@@ -1019,11 +1114,10 @@ bool AutoKJServerAPI::testHttpAuth(QString *errorOut)
     const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     reply->deleteLater();
 
-    // If 401, credentials may be expired — re-login once and retry
+    // If 401, token may be expired — re-login once and retry
     if (status == 401) {
         m_token.clear();
         m_settings.setRequestServerToken({});
-        m_settings.setRequestServerApiKey({});
         token = QString();
         if (!login(errorOut))
             return false;

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5...3.10)
+cmake_minimum_required(VERSION 3.14)
 
 file(READ "src/okjversion.h" vercontents)
 string(REGEX MATCH "OKJ_VERSION_MAJOR ([0-9]*)" _ ${vercontents})
@@ -29,7 +29,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
 
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Sql Network WebSockets Widgets Concurrent Svg PrintSupport WebEngineWidgets WebChannel REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Sql Network WebSockets Widgets Concurrent Svg PrintSupport REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -663,8 +663,6 @@ set(LIBRARIES
         Qt5::Svg
         Qt5::PrintSupport
         Qt5::Concurrent
-        Qt5::WebEngineWidgets
-        Qt5::WebChannel
         )
 
 # ── Platform-specific streaming deps ─────────────────────────────────────────
@@ -763,7 +761,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
             if (MACDEPLOYQT)
                 if (DEFINED MAC_SIGNING_IDENTITY)
                     add_custom_command(
-                            TARGET Auto-KJ
+                            TARGET auto-kj
                             COMMAND "${MACDEPLOYQT}"
                             VERBATIM
                             ARGS
@@ -773,7 +771,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
                     )
                 else ()
                     add_custom_command(
-                            TARGET Auto-KJ
+                            TARGET auto-kj
                             COMMAND "${MACDEPLOYQT}"
                             ARGS "${CMAKE_BINARY_DIR}/Auto-KJ.app"
                     )
@@ -791,7 +789,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
                     DESTINATION "Auto-KJ.app/Contents/Frameworks/GStreamer.framework"
             )
             add_custom_command(
-                    TARGET Auto-KJ
+                    TARGET auto-kj
                     POST_BUILD
                     COMMAND "cp"
                     ARGS
@@ -893,9 +891,9 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
         endif ()
         add_custom_command(
                 TARGET auto-kj POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    "${GST_BASE_PATH}/bin"
-                    "$<TARGET_FILE_DIR:auto-kj>"
+                COMMAND "${CMAKE_COMMAND}" -E copy_directory "${GST_BASE_PATH}/bin" "$<TARGET_FILE_DIR:auto-kj>"
+                COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:auto-kj>/lib/gstreamer-1.0"
+                COMMAND "${CMAKE_COMMAND}" -E copy_directory "${GST_BASE_PATH}/lib/gstreamer-1.0" "$<TARGET_FILE_DIR:auto-kj>/lib/gstreamer-1.0"
         )
     endif ()
 endif ()

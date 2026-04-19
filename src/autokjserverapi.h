@@ -31,6 +31,7 @@ class AutoKJServerAPI : public AutoKJServerClient
 public:
     explicit AutoKJServerAPI(QObject *parent = nullptr);
     ~AutoKJServerAPI() override;
+    void reconfigureFromSettings(bool force = false);
 
     // ── Public interface (mirrors OKJSongbookAPI) ─────────────────────────────
 
@@ -137,8 +138,16 @@ private:
     bool m_cancelUpdate{false};
     bool m_updateInProgress{false};
     bool m_testInProgress{false};
+    bool m_reconnectEnabled{false};
+    bool m_reconfigureInProgress{false};
+    bool m_suppressReconnectOnce{false};
     int m_reconnectIntervalSecs{5};
     QString m_token;
+    QString m_lastServerUrl;
+    QString m_lastEmail;
+    QString m_lastPassword;
+    QString m_lastToken;
+    int m_lastVenueId{-1};
 
     OkjsRequests m_requests;
 
@@ -147,6 +156,8 @@ private:
     int m_syncChunkIndex{0};
 
     void connectToServer();
+    void disconnectFromServer(bool clearSessionState);
+    void clearSessionState();
     void sendEvent(const QString &event, const QJsonObject &data = {});
     void handleEvent(const QString &event, const QJsonObject &data);
     void processNewRequest(const QJsonObject &reqData);

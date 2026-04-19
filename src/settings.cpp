@@ -792,6 +792,8 @@ bool Settings::requestServerEnabled()
 
 void Settings::setRequestServerEnabled(bool enable)
 {
+    if (requestServerEnabled() == enable)
+        return;
     settings->setValue("requestServerEnabled", enable);
     if (!enable) {
         // Runtime premium gate must drop immediately if the request server is disabled.
@@ -813,7 +815,10 @@ void Settings::setRequestServerUrl(QString url)
     // Migrate legacy URLs on write
     if (url == "https://songbook.Auto-KJ.org/api" || url == "https://api.okjsongbook.com")
         url = "https://api.auto-kj.com";
+    if (requestServerUrl() == url)
+        return;
     settings->setValue("requestServerUrl", url);
+    emit requestServerUrlChanged(url);
 }
 
 int Settings::requestServerVenue()
@@ -823,6 +828,8 @@ int Settings::requestServerVenue()
 
 void Settings::setRequestServerVenue(int venueId)
 {
+    if (requestServerVenue() == venueId)
+        return;
     settings->setValue("requestServerVenue", venueId);
     emit requestServerVenueChanged(venueId);
 }
@@ -834,9 +841,13 @@ QString Settings::requestServerEmail() const
 
 void Settings::setRequestServerEmail(const QString &email)
 {
-    settings->setValue("requestServerEmail", email.trimmed());
+    const QString trimmed = email.trimmed();
+    if (requestServerEmail() == trimmed)
+        return;
+    settings->setValue("requestServerEmail", trimmed);
     settings->remove("requestServerToken");
-    settings->remove("requestServerApiKey");
+    setPremiumAntiChaosAuthorized(false);
+    emit requestServerCredentialsChanged();
 }
 
 QString Settings::requestServerPassword() const
@@ -846,9 +857,12 @@ QString Settings::requestServerPassword() const
 
 void Settings::setRequestServerPassword(const QString &password)
 {
+    if (requestServerPassword() == password)
+        return;
     settings->setValue("requestServerPassword", password);
     settings->remove("requestServerToken");
-    settings->remove("requestServerApiKey");
+    setPremiumAntiChaosAuthorized(false);
+    emit requestServerCredentialsChanged();
 }
 
 QString Settings::requestServerToken() const
@@ -858,17 +872,10 @@ QString Settings::requestServerToken() const
 
 void Settings::setRequestServerToken(const QString &token)
 {
+    if (requestServerToken() == token)
+        return;
     settings->setValue("requestServerToken", token);
-}
-
-QString Settings::requestServerApiKey() const
-{
-    return settings->value("requestServerApiKey", "").toString();
-}
-
-void Settings::setRequestServerApiKey(const QString &key)
-{
-    settings->setValue("requestServerApiKey", key);
+    emit requestServerCredentialsChanged();
 }
 
 bool Settings::requestServerIgnoreCertErrors()
