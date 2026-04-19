@@ -1339,7 +1339,9 @@ void MainWindow::onVenuesChanged(const OkjsVenues &venues) {
                     "A venue is required to use AutoKJ. Would you like to sign out instead?",
                     QMessageBox::Yes | QMessageBox::No);
                 if (res == QMessageBox::Yes) {
-                    m_settings.setRequestServerApiKey("");
+                    m_settings.setRequestServerEmail("");
+                    m_settings.setRequestServerPassword("");
+                    m_settings.setRequestServerToken("");
                     m_settings.setRequestServerEnabled(false);
                     success = true;
                 }
