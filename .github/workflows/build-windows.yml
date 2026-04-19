@@ -36,7 +36,9 @@ jobs:
       - name: Install OpenSSL 1.1
         shell: powershell
         run: |
-          choco install openssl --version=1.1.1.2100 --no-progress -y
+          $url = "https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe"
+          curl.exe -L --retry 3 -o openssl-installer.exe $url
+          Start-Process -FilePath openssl-installer.exe -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
           $sslDll = Get-ChildItem -Path "C:\Program Files\OpenSSL*\bin" -Filter "libssl-1_1-x64.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $sslDll) { throw "OpenSSL 1.1 DLLs not found after install" }
           Write-Host "Found OpenSSL at: $($sslDll.DirectoryName)"
@@ -118,7 +120,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path "cd\Output" | Out-Null
           Copy-Item "release\*" -Destination "cd\Output\" -Recurse -Force
-          choco install innosetup --no-progress -y
+          curl.exe -L --retry 3 -o innosetup.exe "https://jrsoftware.org/download.php/is.exe"
+          Start-Process -FilePath innosetup.exe -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "cd\auto-kj64.iss"
 
       - name: Upload portable bundle artifact
