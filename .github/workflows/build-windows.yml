@@ -120,8 +120,6 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path "cd\Output" | Out-Null
           Copy-Item "release\*" -Destination "cd\Output\" -Recurse -Force
-          curl.exe -L --retry 3 -o innosetup.exe "https://jrsoftware.org/download.php/is.exe"
-          Start-Process -FilePath innosetup.exe -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "cd\auto-kj64.iss"
 
       - name: Upload portable bundle artifact
