@@ -802,14 +802,17 @@ void Settings::setRequestServerEnabled(bool enable)
 
 QString Settings::requestServerUrl() const
 {
-    return settings->value("requestServerUrl", "https://api.auto-kj.com").toString();
+    QString url = settings->value("requestServerUrl", "https://api.auto-kj.com").toString();
+    if (url == "https://songbook.Auto-KJ.org/api" || url == "https://api.okjsongbook.com")
+        return "https://api.auto-kj.com";
+    return url;
 }
 
 void Settings::setRequestServerUrl(QString url)
 {
-    // Migrate legacy URL on write
-    if (url == "https://songbook.Auto-KJ.org/api")
-        url = "https://api.okjsongbook.com";
+    // Migrate legacy URLs on write
+    if (url == "https://songbook.Auto-KJ.org/api" || url == "https://api.okjsongbook.com")
+        url = "https://api.auto-kj.com";
     settings->setValue("requestServerUrl", url);
 }
 
