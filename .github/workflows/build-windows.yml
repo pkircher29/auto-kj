@@ -28,7 +28,8 @@ jobs:
       - name: Install GStreamer
         shell: powershell
         run: |
-          choco install gstreamer gstreamer-devel --no-progress -y
+          choco install gstreamer --no-progress -y --ignore-checksums
+          choco install gstreamer-devel --no-progress -y --ignore-checksums
           if (!(Test-Path "C:\Program Files\gstreamer\1.0\msvc_x86_64\bin")) {
             throw "GStreamer install path not found"
           }
