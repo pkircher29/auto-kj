@@ -863,7 +863,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
             # Look in Qt bin dir first, then the default OpenSSL Win64 install location.
             foreach(_ssl_dll "libssl-1_1-x64.dll" "libcrypto-1_1-x64.dll")
                 set(_ssl_found FALSE)
-                foreach(_ssl_dir "${qt5_install_prefix}/bin" "C:/Program Files/OpenSSL-Win64/bin")
+                foreach(_ssl_dir "${qt5_install_prefix}/bin" "C:/Program Files/OpenSSL-Win64/bin" "C:/Program Files/OpenSSL/bin")
                     if(EXISTS "${_ssl_dir}/${_ssl_dll}")
                         add_custom_command(
                             TARGET auto-kj POST_BUILD
