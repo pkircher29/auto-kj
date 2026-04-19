@@ -62,7 +62,7 @@ jobs:
         shell: powershell
         run: |
           $releaseDir = "build\Release"
-          & "$env:Qt5_DIR\bin\windeployqt.exe" --release --no-translations "$releaseDir\auto-kj.exe"
+          & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --no-translations "$releaseDir\auto-kj.exe"
 
           $gstBin = "C:\Program Files\gstreamer\1.0\msvc_x86_64\bin"
           Copy-Item "$gstBin\*.dll" -Destination $releaseDir -Force
