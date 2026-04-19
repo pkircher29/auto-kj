@@ -1,13 +1,18 @@
 # Auto-KJ Windows Packaging Script
 # This script automates the build, dependency deployment, and installer generation.
 
-$ErrorActionPreference = "Stop"
+param(
+    [string]$Generator = "Visual Studio 17 2022",
+    [string]$Config = "Release",
+    [string]$QtPath = "C:\Qt\5.15.2\msvc2019_64",
+    [string]$GStreamerPath = "C:\Program Files\gstreamer\1.0\msvc_x86_64",
+    [string]$BuildDir = "build_windows",
+    [string]$OutputDir = "cd\output"
+)
 
-$QtPath = "C:\Qt\5.15.2\msvc2019_64"
-$GStreamerPath = "C:\Program Files\gstreamer\1.0\msvc_x86_64"
-$BuildDir = "build_windows"
-$OutputDir = "cd\output"
+$ErrorActionPreference = "Stop"
 $VSPath = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
+$IsMultiConfig = $Generator -match "Visual Studio|Xcode|Ninja Multi-Config"
 
 function Write-Step($msg) {
     Write-Host "`n>>> $msg" -ForegroundColor Cyan
@@ -21,17 +26,32 @@ if (!(Test-Path $OutputDir)) { New-Item -ItemType Directory -Path $OutputDir } e
 
 # 2. Configure and Build
 Write-Step "Configuring CMake..."
-& "cmake" -B $BuildDir -G "Visual Studio 17 2022" -A x64 `
-    "-DDEPLOY_DEPS=ON" `
-    "-DQT_INSTALL_PREFIX=$QtPath" `
+$ConfigureArgs = @(
+    "-B", $BuildDir,
+    "-G", $Generator,
+    "-DDEPLOY_DEPS=ON",
+    "-DQT_INSTALL_PREFIX=$QtPath",
     "-DGST_BASE_PATH=$GStreamerPath"
+)
+if ($Generator -match "Visual Studio") {
+    $ConfigureArgs += @("-A", "x64")
+}
+if (-not $IsMultiConfig) {
+    $ConfigureArgs += "-DCMAKE_BUILD_TYPE=$Config"
+}
+& "cmake" @ConfigureArgs
 
-Write-Step "Building Auto-KJ (Release)..."
-& "cmake" --build $BuildDir --config Release --parallel
+Write-Step "Building Auto-KJ ($Config)..."
+$BuildArgs = @("--build", $BuildDir, "--parallel")
+if ($IsMultiConfig) {
+    $BuildArgs += @("--config", $Config)
+}
+& "cmake" @BuildArgs
 
 # 3. Collect Build Artifacts
 Write-Step "Collecting Build Artifacts..."
-Copy-Item "$BuildDir\Release\*" $OutputDir -Recurse -Force
+$BuildOutputDir = if ($IsMultiConfig) { Join-Path $BuildDir $Config } else { $BuildDir }
+Copy-Item "$BuildOutputDir\*" $OutputDir -Recurse -Force
 
 # 4. Deploy Qt Dependencies
 Write-Step "Running windeployqt..."

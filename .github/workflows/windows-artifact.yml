@@ -1,0 +1,83 @@
+name: Windows Artifact Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release label for artifact naming
+        required: true
+        default: v1.0.0-beta1
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 5.15.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          arch: 'win64_msvc2019_64'
+          cache: true
+
+      - name: Install Windows dependencies
+        shell: powershell
+        run: |
+          choco install gstreamer --yes --no-progress
+          choco install gstreamer-devel --yes --no-progress
+          choco install innosetup --yes --no-progress
+
+      - name: Detect Qt path
+        id: qt
+        shell: powershell
+        run: |
+          $windeployqt = (Get-Command windeployqt.exe -ErrorAction Stop).Source
+          $qtPath = Split-Path (Split-Path $windeployqt -Parent) -Parent
+          "path=$qtPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "QtPath=$qtPath"
+
+      - name: Detect GStreamer path
+        id: gst
+        shell: powershell
+        run: |
+          $candidates = @(
+            'C:\gstreamer\1.0\msvc_x86_64',
+            'C:\Program Files\gstreamer\1.0\msvc_x86_64'
+          )
+          $gstPath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $gstPath) {
+            throw 'GStreamer path not found after Chocolatey install.'
+          }
+          "path=$gstPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "GStreamerPath=$gstPath"
+
+      - name: Build staged Windows package
+        shell: powershell
+        run: |
+          .\package_windows.ps1 `
+            -Generator 'Visual Studio 17 2022' `
+            -Config 'Release' `
+            -QtPath '${{ steps.qt.outputs.path }}' `
+            -GStreamerPath '${{ steps.gst.outputs.path }}' `
+            -OutputDir 'dist'
+
+      - name: Archive artifact
+        shell: powershell
+        run: |
+          $artifactBase = "auto-kj-${{ github.event.inputs.version }}-windows-x64"
+          if (Test-Path 'cd\Output\Auto-KJ*.exe') {
+            Copy-Item 'cd\Output\Auto-KJ*.exe' '.' -Force
+          }
+          Compress-Archive -Path 'dist\*' -DestinationPath "$artifactBase.zip" -Force
+
+      - name: Upload staged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-kj-${{ github.event.inputs.version }}-windows-x64
+          path: |
+            auto-kj-${{ github.event.inputs.version }}-windows-x64.zip
+            Auto-KJ*.exe
+          if-no-files-found: warn
