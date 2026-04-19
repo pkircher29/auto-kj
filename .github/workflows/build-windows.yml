@@ -74,7 +74,7 @@ jobs:
             "libcrypto-1_1-x64.dll"
           )
           $searchDirs = @(
-            "$env:Qt5_DIR\bin",
+            "$env:QT_ROOT_DIR\bin",
             "$env:OPENSSL_BIN",
             "C:\Program Files\OpenSSL-Win64\bin",
             "C:\Program Files\OpenSSL\bin"
