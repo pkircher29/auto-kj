@@ -148,6 +148,8 @@ public:
     void setRequestServerPassword(const QString &password);
     QString requestServerToken() const;
     void setRequestServerToken(const QString &token);
+    QString requestServerApiKey() const;
+    void setRequestServerApiKey(const QString &key);
     bool requestServerIgnoreCertErrors();
     void setRequestServerIgnoreCertErrors(bool ignore);
     // AutoKJ Server settings (venue slug replaces numeric venue ID; token replaces API key)

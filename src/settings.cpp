@@ -836,6 +836,7 @@ void Settings::setRequestServerEmail(const QString &email)
 {
     settings->setValue("requestServerEmail", email.trimmed());
     settings->remove("requestServerToken");
+    settings->remove("requestServerApiKey");
 }
 
 QString Settings::requestServerPassword() const
@@ -847,6 +848,7 @@ void Settings::setRequestServerPassword(const QString &password)
 {
     settings->setValue("requestServerPassword", password);
     settings->remove("requestServerToken");
+    settings->remove("requestServerApiKey");
 }
 
 QString Settings::requestServerToken() const
@@ -857,6 +859,16 @@ QString Settings::requestServerToken() const
 void Settings::setRequestServerToken(const QString &token)
 {
     settings->setValue("requestServerToken", token);
+}
+
+QString Settings::requestServerApiKey() const
+{
+    return settings->value("requestServerApiKey", "").toString();
+}
+
+void Settings::setRequestServerApiKey(const QString &key)
+{
+    settings->setValue("requestServerApiKey", key);
 }
 
 bool Settings::requestServerIgnoreCertErrors()

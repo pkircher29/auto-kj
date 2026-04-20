@@ -481,24 +481,9 @@ void AutoKJServerAPI::setAccepting(bool enabled, bool offerEndShowPrompt)
         }
     }
 
-    if (ok && !enabled && offerEndShowPrompt) {
-        QMessageBox::StandardButton btn = QMessageBox::question(
-            nullptr,
-            "End Show?",
-            "Requests are now turned off for this venue.\n\nDo you want to end the active show as well?",
-            QMessageBox::Yes | QMessageBox::No
-        );
-        if (btn == QMessageBox::Yes) {
-            QString endErr;
-            if (!endActiveShow(&endErr)) {
-                QMessageBox::warning(
-                    nullptr,
-                    "End Show Failed",
-                    endErr.isEmpty() ? "Could not end the active show." : endErr
-                );
-            }
-        }
-    }
+    Q_UNUSED(offerEndShowPrompt);
+    // Toggling Accept Requests off no longer ends the show — the show keeps
+    // running until the KJ explicitly clicks End Show.
 
     if (ok) {
         refreshVenues(true);
@@ -971,6 +956,11 @@ bool AutoKJServerAPI::login(QString *errorOut)
 
     m_token = token;
     m_settings.setRequestServerToken(token);
+
+    const QString apiKey = doc.object().value("api_key").toString();
+    if (!apiKey.isEmpty())
+        m_settings.setRequestServerApiKey(apiKey);
+
     if (errorOut) errorOut->clear();
     return true;
 }
@@ -991,7 +981,13 @@ QString AutoKJServerAPI::ensureToken(QString *errorOut)
 
 void AutoKJServerAPI::setAuthHeader(QNetworkRequest &request, const QString &token)
 {
-    request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
+    // KJ desktop endpoints authenticate via X-Api-Key. The Bearer token is kept
+    // for backwards compatibility with anything that still expects JWT.
+    const QString apiKey = m_settings.requestServerApiKey();
+    if (!apiKey.isEmpty())
+        request.setRawHeader("X-Api-Key", apiKey.toUtf8());
+    if (!token.isEmpty())
+        request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 }
 
@@ -1023,10 +1019,11 @@ bool AutoKJServerAPI::testHttpAuth(QString *errorOut)
     const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     reply->deleteLater();
 
-    // If 401, token may be expired — re-login once and retry
+    // If 401, credentials may be expired — re-login once and retry
     if (status == 401) {
         m_token.clear();
         m_settings.setRequestServerToken({});
+        m_settings.setRequestServerApiKey({});
         token = QString();
         if (!login(errorOut))
             return false;

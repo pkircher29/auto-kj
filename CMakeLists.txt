@@ -29,7 +29,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
 
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Sql Network WebSockets Widgets Concurrent Svg PrintSupport REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Sql Network WebSockets Widgets Concurrent Svg PrintSupport WebEngineWidgets WebChannel REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -663,6 +663,8 @@ set(LIBRARIES
         Qt5::Svg
         Qt5::PrintSupport
         Qt5::Concurrent
+        Qt5::WebEngineWidgets
+        Qt5::WebChannel
         )
 
 # ── Platform-specific streaming deps ─────────────────────────────────────────

@@ -2129,7 +2129,30 @@ For example, searching for &quot;im&quot; will find songs that contain &quot;I'm
              </property>
              <property name="sizeHint" stdset="0">
               <size>
-               <width>377</width>
+               <width>180</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnManageSubscription">
+             <property name="toolTip">
+              <string>Open the Auto-KJ pricing page in your browser</string>
+             </property>
+             <property name="text">
+              <string>Subscribe / Manage Plan…</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacerSubscribe">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>180</width>
                <height>20</height>
               </size>
              </property>

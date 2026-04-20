@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Venue Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #1e2130; }
+  #map { width: 100%; height: 100vh; cursor: crosshair; }
+  .leaflet-container { background: #1e2130; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+  let map, marker, bridge = null;
+
+  function init() {
+    map = L.map('map', { zoomControl: true }).setView([39.9526, -75.1652], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    map.on('click', (e) => {
+      placeMarker(e.latlng.lat, e.latlng.lng);
+      if (bridge) bridge.onMapClicked(e.latlng.lat, e.latlng.lng);
+    });
+
+    new QWebChannel(qt.webChannelTransport, (channel) => {
+      bridge = channel.objects.bridge;
+      bridge.ready();
+    });
+  }
+
+  function placeMarker(lat, lon) {
+    if (!map) return;
+    if (marker) marker.setLatLng([lat, lon]);
+    else marker = L.marker([lat, lon], { draggable: true }).addTo(map)
+                  .on('dragend', (e) => {
+                    const p = e.target.getLatLng();
+                    if (bridge) bridge.onMapClicked(p.lat, p.lng);
+                  });
+  }
+
+  // Called from C++
+  function setLocation(lat, lon, zoom) {
+    placeMarker(lat, lon);
+    map.setView([lat, lon], zoom || 16);
+  }
+  function clearLocation() {
+    if (marker) { map.removeLayer(marker); marker = null; }
+  }
+
+  window.addEventListener('load', init);
+</script>
+</body>
+</html>

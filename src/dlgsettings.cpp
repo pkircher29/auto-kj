@@ -33,6 +33,8 @@
 #include <QtSql>
 #include <QXmlStreamWriter>
 #include <QNetworkReply>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QAuthenticator>
 #include <QKeySequenceEdit>
 #include "audiorecorder.h"
@@ -781,6 +783,10 @@ void DlgSettings::on_btnCreateAccount_clicked() {
         ui->lineEditEmail->setText(dlg.registeredEmail());
         ui->lineEditPassword->setText(dlg.registeredPassword());
     }
+}
+
+void DlgSettings::on_btnManageSubscription_clicked() {
+    QDesktopServices::openUrl(QUrl("https://auto-kj.com/pricing"));
 }
 
 void DlgSettings::on_checkBoxShowKAAAlert_toggled(bool checked) {
