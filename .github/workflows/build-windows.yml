@@ -31,7 +31,8 @@ jobs:
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2019_64'
-          modules: 'qtwebengine,qtwebchannel'
+          modules: 'qtwebengine'
+          setup-python: false
 
       - name: Install GStreamer SDK
         shell: powershell
