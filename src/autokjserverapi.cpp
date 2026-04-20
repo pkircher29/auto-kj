@@ -962,11 +962,7 @@ void AutoKJServerAPI::test()
 {
     m_testInProgress = true;
 
-<<<<<<< Updated upstream
-    // Preferred path for AutoKJ-Pro backend: validate token over HTTP first.
-=======
     // Preferred path for Auto-KJ Pro backend: validate API key over HTTP first.
->>>>>>> Stashed changes
     // This avoids failing the test when /ws/kj is not implemented on the server.
     QString httpErr;
     if (testHttpAuth(&httpErr)) {
