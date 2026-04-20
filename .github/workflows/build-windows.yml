@@ -2,7 +2,7 @@ name: Build Auto-KJ Windows
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, release-fix-clean]
     tags: ['v*']
   pull_request:
     branches: [master, main]
