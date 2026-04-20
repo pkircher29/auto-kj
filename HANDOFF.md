@@ -16,17 +16,20 @@ Ship a stable Windows desktop build, verify the GitHub Windows artifact pipeline
 - `master`
 
 ## Latest safe commit
-- Check with `git log --oneline -n 1`
-- When handing off, replace this line with the exact commit hash currently considered safe
+- `adbe9f9d` — fix: resolve merge conflict in autokjserverapi.cpp and add missing Qt WebChannel/WebEngineWidgets
 
 ## Current status
 - Windows workflow exists in `.github/workflows/build-windows.yml`
-- Additional manual artifact workflow exists in `.github/workflows/windows-artifact.yml`
-- Recent fixes included installer branding cleanup and desktop updater link cleanup
+- **Fixed**: merge conflict markers left in `autokjserverapi.cpp` by Roger (lines 965-972)
+- **Fixed**: missing Qt WebChannel/WebEngineWidgets modules in CMakeLists.txt
+- Build re-triggered: run `24662134822` (push) + `24662137786` (manual)
 - Release work should only continue from a clean, understood state
 
 ## Doing now
-- [ ] Verify latest Windows GitHub Actions run result
+- [x] Lisa synced to origin/master (commit `01c15268`)
+- [x] Lisa: fixed merge conflict + missing Qt modules
+- [x] Lisa: re-triggered Windows build
+- [ ] Monitor build run `24662134822` or `24662137786`
 - [ ] If green, prepare tag/release decision
 - [ ] If red, fix the first failing step only
 
@@ -34,8 +37,12 @@ Ship a stable Windows desktop build, verify the GitHub Windows artifact pipeline
 - [ ] None currently
 
 ## Next
-- If Windows build passes, confirm artifact names and decide whether to tag/release
-- If Windows build fails, capture the failing step and fix only that issue before retrying
+- [ ] Lisa: finish backend playback worker in autokj-pro (separate repo)
+- [ ] Paul: drive safe, build refrigerator wall, back Thursday
+- [ ] Target by Thursday: released auto-kj + pro on deck
+
+## Handoff notes
+- **2026-04-20 10:43 UTC** — Lisa fixed Roger's accidental merge conflict markers in `autokjserverapi.cpp` and added missing Qt modules. Build in progress.
 
 ## Handoff rules
 1. Update this file before switching context
