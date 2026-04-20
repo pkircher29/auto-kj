@@ -67,7 +67,7 @@ jobs:
             "-DGST_BASE_PATH=C:\gstreamer-sdk"
 
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --config Release --parallel -- /verbosity:minimal /clp:ErrorsOnly
 
       - name: Stage release bundle
         shell: powershell
