@@ -67,6 +67,7 @@ public:
     void setPlayed(int qSongId, bool played = true);
     void removeAll();
     void commitChanges();
+    void setCosingerId(int songId, int cosingerIndex, int singerId, const QString &singerName);
 
 private:
     std::string m_loggingPrefix{"[QueueSongsModel]"};

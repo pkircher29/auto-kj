@@ -99,8 +99,11 @@ namespace okj {
         QString path;
         QString singerName;
         QString cosinger2;
+        int cosinger2Id{-1};
         QString cosinger3;
+        int cosinger3Id{-1};
         QString cosinger4;
+        int cosinger4Id{-1};
     };
 
     struct HistorySong {
