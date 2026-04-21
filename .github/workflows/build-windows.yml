@@ -68,7 +68,7 @@ jobs:
             "-DGST_BASE_PATH=$env:GST_BASE_PATH"
 
       - name: Build
-        run: cmake --build build --config Release --parallel -- /verbosity:minimal /clp:ErrorsOnly
+        run: cmake --build build --config Release --parallel
 
       - name: Stage release bundle
         shell: powershell
