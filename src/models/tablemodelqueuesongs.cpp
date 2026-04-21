@@ -380,8 +380,11 @@ int TableModelQueueSongs::add(const int songId, const QStringList &cosingers) {
             ksong.path,
             m_settings.kjName(), // Just a placeholder or empty? Actually singerName should be fetched
             "",
+            -1,
             "",
-            ""
+            -1,
+            "",
+            -1
     });
     // Fix singerName after insertion if possible, or just reload singer
     loadSinger(m_curSingerId);

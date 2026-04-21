@@ -2681,7 +2681,7 @@ void MainWindow::tableViewQueueContextMenuRequested(const QPoint &pos) {
                 int cosingerIndex = col - TableModelQueueSongs::COL_SINGER1 + 1;
                 
                 // Get rotation singers
-                for (int row = 0; row < m_rotModel.rowCount(); ++row) {
+                for (int row = 0; row < m_rotModel.rowCount(QModelIndex()); ++row) {
                     auto singerIdx = m_rotModel.index(row, 0);
                     int singerId = m_rotModel.data(singerIdx, Qt::UserRole).toInt();
                     QString singerName = m_rotModel.data(singerIdx, Qt::DisplayRole).toString();
