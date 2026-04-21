@@ -39,10 +39,10 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 [Files]
 Source: "Output\auto-kj.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Output\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "Output\Roboto-Bold.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto Bold"; Flags: onlyifdoesntexist uninsneveruninstall
-Source: "Output\Roboto-Medium.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto Medium"; Flags: onlyifdoesntexist uninsneveruninstall
-Source: "Output\Roboto-Regular.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto"; Flags: onlyifdoesntexist uninsneveruninstall
-Source: "Output\SourceCodePro-Medium.ttf"; DestDir: "{fonts}"; FontInstall: "Source Code Pro Medium"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "Output\Roboto-Bold.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto Bold"; Flags: onlyifdoesntexist uninsneveruninstall skipifsourcedoesntexist
+Source: "Output\Roboto-Medium.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto Medium"; Flags: onlyifdoesntexist uninsneveruninstall skipifsourcedoesntexist
+Source: "Output\Roboto-Regular.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto"; Flags: onlyifdoesntexist uninsneveruninstall skipifsourcedoesntexist
+Source: "Output\SourceCodePro-Medium.ttf"; DestDir: "{fonts}"; FontInstall: "Source Code Pro Medium"; Flags: onlyifdoesntexist uninsneveruninstall skipifsourcedoesntexist
 
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
