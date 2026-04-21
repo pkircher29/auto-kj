@@ -63,7 +63,7 @@ jobs:
         shell: powershell
         run: |
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
-            "-DDEPLOY_DEPS=ON" `
+            "-DDEPLOY_DEPS=OFF" `
             "-DQT_INSTALL_PREFIX=$env:Qt5_DIR\..\..\.." `
             "-DGST_BASE_PATH=$env:GST_BASE_PATH"
 
