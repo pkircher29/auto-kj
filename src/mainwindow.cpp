@@ -1242,6 +1242,10 @@ void MainWindow::setupConnections() {
     
     m_venueTb->setVisible(m_settings.requestServerEnabled());
     connect(&m_settings, &Settings::requestServerEnabledChanged, m_venueTb, &QToolBar::setVisible);
+    connect(&m_settings, &Settings::requestServerEnabledChanged, this, [this]() { m_songbookApi.reconfigureFromSettings(); });
+    connect(&m_settings, &Settings::requestServerUrlChanged, this, [this]() { m_songbookApi.reconfigureFromSettings(); });
+    connect(&m_settings, &Settings::requestServerCredentialsChanged, this, [this]() { m_songbookApi.reconfigureFromSettings(); });
+    connect(&m_settings, &Settings::requestServerVenueChanged, this, [this]() { m_songbookApi.reconfigureFromSettings(); });
     connect(&m_settings, &Settings::venueConfigChanged, &m_songbookApi, &AutoKJServerClient::pushVenueConfig);
     connect(&m_settings, &Settings::gigSettingsChanged, &m_songbookApi, &AutoKJServerClient::pushGigSettings);
 
@@ -1339,7 +1343,9 @@ void MainWindow::onVenuesChanged(const OkjsVenues &venues) {
                     "A venue is required to use AutoKJ. Would you like to sign out instead?",
                     QMessageBox::Yes | QMessageBox::No);
                 if (res == QMessageBox::Yes) {
-                    m_settings.setRequestServerApiKey("");
+                    m_settings.setRequestServerEmail("");
+                    m_settings.setRequestServerPassword("");
+                    m_settings.setRequestServerToken("");
                     m_settings.setRequestServerEnabled(false);
                     success = true;
                 }
@@ -1360,10 +1366,6 @@ void MainWindow::onVenueSelected(int index) {
     int venueId = m_comboBoxVenue->itemData(index).toInt();
     m_settings.setRequestServerVenue(venueId);
     m_settings.setRequestServerVenueSlug(m_comboBoxVenue->itemData(index, Qt::UserRole + 1).toString());
-    // Re-authenticate so the server switches to the newly-selected venue
-    if (m_songbookApi.isConnected())
-        m_songbookApi.authenticate();
-    m_songbookApi.refreshVenues(true);
     if (m_checkBoxAcceptingRequests) {
         m_checkBoxAcceptingRequests->blockSignals(true);
         m_checkBoxAcceptingRequests->setChecked(m_songbookApi.getAccepting());
@@ -3693,11 +3695,11 @@ void MainWindow::newVersionAvailable(const QString &version) {
     }
     if (m_updateChecker->getOS() == "Win32" || m_updateChecker->getOS() == "Win64") {
         msgBox.setInformativeText(
-                "You can download the new version at <a href=https://Auto-KJ.org/software>https://Auto-KJ.org/software</a>");
+                "You can download the new version at <a href=https://auto-kj.com>https://auto-kj.com</a>");
     }
     if (m_updateChecker->getOS() == "MacOS") {
         msgBox.setInformativeText(
-                "You can download the new version at <a href=https://Auto-KJ.org/software>https://Auto-KJ.org/software</a>");
+                "You can download the new version at <a href=https://auto-kj.com>https://auto-kj.com</a>");
     }
     msgBox.exec();
 }

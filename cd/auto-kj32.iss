@@ -6,10 +6,10 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Auto-KJ"
-#define MyAppVersion "2.1.39-unstable"
+#define MyAppVersion "1.0.0-beta1"
 #define MyAppPublisher "Auto-KJ Project"
-#define MyAppURL "https://Auto-KJ.org/"
-#define MyAppExeName "Auto-KJ.exe"
+#define MyAppURL "https://auto-kj.com/"
+#define MyAppExeName "auto-kj.exe"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -26,7 +26,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 LicenseFile=output\LICENSE.txt
-OutputBaseFilename=Auto-KJ
+OutputBaseFilename=Auto-KJ-Windows-x86-Setup
 Compression=lzma
 SolidCompression=yes
 UninstallDisplayName=Auto-KJ
@@ -40,7 +40,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 0,6.1
 
 [Files]
-Source: "output\Auto-KJ.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "output\auto-kj.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "output\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "output\Roboto-Bold.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto Bold"; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "output\Roboto-Medium.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto Medium"; Flags: onlyifdoesntexist uninsneveruninstall

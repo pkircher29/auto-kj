@@ -252,15 +252,15 @@ QJsonDocument DlgManageVenuesGigs::requestJson(
     if (errorOut)
         errorOut->clear();
 
-    const QString apiKey = m_settings.requestServerApiKey();
-    if (apiKey.isEmpty()) {
+    const QString token = m_settings.requestServerToken();
+    if (token.isEmpty()) {
         if (errorOut)
-            *errorOut = "API key is not set.";
+            *errorOut = "Not logged in. Please configure your email and password in settings.";
         return {};
     }
 
     QNetworkRequest request(QUrl(baseHttpUrl() + path));
-    request.setRawHeader("X-Api-Key", apiKey.toUtf8());
+    request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     QNetworkReply *reply = nullptr;
@@ -347,6 +347,10 @@ void DlgManageVenuesGigs::loadVenues()
         item->setData(Qt::UserRole, id);
         item->setData(Qt::UserRole + 1, address);
         item->setData(Qt::UserRole + 2, obj.value("kj_pin").toString());
+        const QJsonValue latVal = obj.value("lat");
+        const QJsonValue lonVal = obj.value("lon");
+        item->setData(Qt::UserRole + 3, latVal.isDouble() ? latVal.toDouble() : QVariant());
+        item->setData(Qt::UserRole + 4, lonVal.isDouble() ? lonVal.toDouble() : QVariant());
         if (id == prevVenue || (prevVenue <= 0 && i == 0))
             rowToSelect = i;
     }
@@ -393,6 +397,10 @@ void DlgManageVenuesGigs::addVenue()
     payload["name"] = dlg.venueName();
     payload["address"] = dlg.venueAddress();
     payload["kj_pin"] = dlg.venuePin().isEmpty() ? "1234" : dlg.venuePin();
+    if (dlg.hasCoordinates()) {
+        payload["lat"] = dlg.venueLat();
+        payload["lon"] = dlg.venueLon();
+    }
 
     int status = 0;
     QString error;
@@ -424,6 +432,10 @@ void DlgManageVenuesGigs::editVenue()
     dlg.setVenueName(oldName);
     dlg.setVenueAddress(oldAddress);
     dlg.setVenuePin(oldPin);
+    const QVariant oldLat = item->data(Qt::UserRole + 3);
+    const QVariant oldLon = item->data(Qt::UserRole + 4);
+    if (oldLat.isValid() && oldLon.isValid())
+        dlg.setVenueCoordinates(oldLat.toDouble(), oldLon.toDouble());
     if (dlg.exec() != QDialog::Accepted)
         return;
 
@@ -431,6 +443,10 @@ void DlgManageVenuesGigs::editVenue()
     payload["name"] = dlg.venueName();
     payload["address"] = dlg.venueAddress();
     payload["kj_pin"] = dlg.venuePin().isEmpty() ? "1234" : dlg.venuePin();
+    if (dlg.hasCoordinates()) {
+        payload["lat"] = dlg.venueLat();
+        payload["lon"] = dlg.venueLon();
+    }
 
     int status = 0;
     QString error;

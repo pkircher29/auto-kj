@@ -792,6 +792,8 @@ bool Settings::requestServerEnabled()
 
 void Settings::setRequestServerEnabled(bool enable)
 {
+    if (requestServerEnabled() == enable)
+        return;
     settings->setValue("requestServerEnabled", enable);
     if (!enable) {
         // Runtime premium gate must drop immediately if the request server is disabled.
@@ -802,15 +804,21 @@ void Settings::setRequestServerEnabled(bool enable)
 
 QString Settings::requestServerUrl() const
 {
-    return settings->value("requestServerUrl", "https://api.auto-kj.com").toString();
+    QString url = settings->value("requestServerUrl", "https://api.auto-kj.com").toString();
+    if (url == "https://songbook.Auto-KJ.org/api" || url == "https://api.okjsongbook.com")
+        return "https://api.auto-kj.com";
+    return url;
 }
 
 void Settings::setRequestServerUrl(QString url)
 {
-    // Migrate legacy URL on write
-    if (url == "https://songbook.Auto-KJ.org/api")
-        url = "https://api.okjsongbook.com";
+    // Migrate legacy URLs on write
+    if (url == "https://songbook.Auto-KJ.org/api" || url == "https://api.okjsongbook.com")
+        url = "https://api.auto-kj.com";
+    if (requestServerUrl() == url)
+        return;
     settings->setValue("requestServerUrl", url);
+    emit requestServerUrlChanged(url);
 }
 
 int Settings::requestServerVenue()
@@ -820,20 +828,54 @@ int Settings::requestServerVenue()
 
 void Settings::setRequestServerVenue(int venueId)
 {
+    if (requestServerVenue() == venueId)
+        return;
     settings->setValue("requestServerVenue", venueId);
     emit requestServerVenueChanged(venueId);
 }
 
-QString Settings::requestServerApiKey()
+QString Settings::requestServerEmail() const
 {
-    return settings->value("requestServerApiKey","").toString().trimmed();
+    return settings->value("requestServerEmail", "").toString().trimmed();
 }
 
-void Settings::setRequestServerApiKey(QString apiKey)
+void Settings::setRequestServerEmail(const QString &email)
 {
-    settings->setValue("requestServerApiKey", apiKey.trimmed());
-    // Force re-authorization whenever credentials change.
+    const QString trimmed = email.trimmed();
+    if (requestServerEmail() == trimmed)
+        return;
+    settings->setValue("requestServerEmail", trimmed);
+    settings->remove("requestServerToken");
     setPremiumAntiChaosAuthorized(false);
+    emit requestServerCredentialsChanged();
+}
+
+QString Settings::requestServerPassword() const
+{
+    return settings->value("requestServerPassword", "").toString();
+}
+
+void Settings::setRequestServerPassword(const QString &password)
+{
+    if (requestServerPassword() == password)
+        return;
+    settings->setValue("requestServerPassword", password);
+    settings->remove("requestServerToken");
+    setPremiumAntiChaosAuthorized(false);
+    emit requestServerCredentialsChanged();
+}
+
+QString Settings::requestServerToken() const
+{
+    return settings->value("requestServerToken", "").toString();
+}
+
+void Settings::setRequestServerToken(const QString &token)
+{
+    if (requestServerToken() == token)
+        return;
+    settings->setValue("requestServerToken", token);
+    emit requestServerCredentialsChanged();
 }
 
 bool Settings::requestServerIgnoreCertErrors()
@@ -1891,8 +1933,8 @@ void Settings::setFairnessEnabled(bool enabled) {
 
 bool Settings::antiChaosPremiumEnabled() const {
     const bool serverEnabled = settings->value("requestServerEnabled", true).toBool();
-    const bool hasApiKey = !settings->value("requestServerApiKey", "").toString().trimmed().isEmpty();
-    return serverEnabled && hasApiKey && premiumAntiChaosAuthorized();
+    const bool hasCredentials = !settings->value("requestServerEmail", "").toString().trimmed().isEmpty();
+    return serverEnabled && hasCredentials && premiumAntiChaosAuthorized();
 }
 
 bool Settings::premiumAntiChaosAuthorized() const {

@@ -138,7 +138,10 @@ private slots:
     void on_pushButtonSlideshowBrowse_clicked();
     void on_rbSlideshow_toggled(bool checked);
     void on_rbBgImage_toggled(bool checked);
-    void on_lineEditApiKey_editingFinished();
+    void on_lineEditEmail_editingFinished();
+    void on_lineEditPassword_editingFinished();
+    void on_btnCreateAccount_clicked();
+    void on_btnManageSubscription_clicked();
     void on_checkBoxShowKAAAlert_toggled(bool checked);
     void on_checkBoxKAA_toggled(bool checked);
     void on_spinBoxAADelay_valueChanged(int arg1);

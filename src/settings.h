@@ -142,8 +142,12 @@ public:
     void setRequestServerUrl(QString url);
     int requestServerVenue();
     void setRequestServerVenue(int venueId);
-    QString requestServerApiKey();
-    void setRequestServerApiKey(QString apiKey);
+    QString requestServerEmail() const;
+    void setRequestServerEmail(const QString &email);
+    QString requestServerPassword() const;
+    void setRequestServerPassword(const QString &password);
+    QString requestServerToken() const;
+    void setRequestServerToken(const QString &token);
     bool requestServerIgnoreCertErrors();
     void setRequestServerIgnoreCertErrors(bool ignore);
     // AutoKJ Server settings (venue slug replaces numeric venue ID; token replaces API key)
@@ -337,6 +341,8 @@ signals:
     void treatAllSingersAsRegsChanged(bool enabled);
     void enforceAspectRatioChanged(const bool &enforce);
     void requestServerVenueChanged(int venueId);
+    void requestServerUrlChanged(const QString &url);
+    void requestServerCredentialsChanged();
     void mplxModeChanged(int mode);
     void karaokeAutoAdvanceChanged(bool enabled);
     void showQueueRemovalWarningChanged(bool enabled);

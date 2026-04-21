@@ -59,7 +59,9 @@ void UpdateChecker::checkForUpdates()
         return;
     qInfo() << "Requesting current version info for branch: " << channel;
     connect(manager, &QNetworkAccessManager::finished, this, &UpdateChecker::onNetworkReply);
-    [[maybe_unused]]QNetworkReply *reply = manager->get(QNetworkRequest(QUrl("http://auto-kj.com/downloads/" + OS + "-" + channel + "-curversion.txt")));
+    QNetworkRequest req(QUrl("https://auto-kj.com/downloads/" + OS + "-" + channel + "-curversion.txt"));
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    [[maybe_unused]]QNetworkReply *reply = manager->get(req);
 //    while (!reply->isFinished())
 //        QApplication::processEvents();
 //    qInfo() << "Request completed";
@@ -83,9 +85,15 @@ void UpdateChecker::onNetworkReply(QNetworkReply *reply)
         qInfo() << "Got invalid version info from server";
         return;
     }
-    int availMajor = availVersionParts.at(0).toInt();
-    int availMinor = availVersionParts.at(1).toInt();
-    int availRevis = availVersionParts.at(2).toInt();
+    bool ok1, ok2, ok3;
+    int availMajor = availVersionParts.at(0).toInt(&ok1);
+    int availMinor = availVersionParts.at(1).toInt(&ok2);
+    int availRevis = availVersionParts.at(2).toInt(&ok3);
+    if (!ok1 || !ok2 || !ok3)
+    {
+        qInfo() << "Got non-numeric version info from server:" << availVersion;
+        return;
+    }
     int curMajor = OKJ_VERSION_MAJOR;
     int curMinor = OKJ_VERSION_MINOR;
     int curRevis = OKJ_VERSION_BUILD;
@@ -109,7 +117,7 @@ void UpdateChecker::onNetworkReply(QNetworkReply *reply)
     jsonObject.insert("arch", QSysInfo::currentCpuArchitecture());
     QJsonDocument jsonDocument;
     jsonDocument.setObject(jsonObject);
-    QNetworkRequest request(QUrl("http://auto-kj.com/appanalytics"));
+    QNetworkRequest request(QUrl("https://auto-kj.com/appanalytics"));
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     reply = manager->post(request, jsonDocument.toJson());
 

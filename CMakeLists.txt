@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5...3.10)
+cmake_minimum_required(VERSION 3.14)
 
 file(READ "src/okjversion.h" vercontents)
 string(REGEX MATCH "OKJ_VERSION_MAJOR ([0-9]*)" _ ${vercontents})
@@ -29,7 +29,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
 
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Sql Network WebSockets Widgets Concurrent Svg PrintSupport REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Sql Network WebSockets Widgets Concurrent Svg PrintSupport WebChannel WebEngineWidgets REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -133,23 +133,22 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     set(WINDOWS_ICON_RC "src/appicon.rc")
     # Prevent C++ compile flags from being passed to rc.exe
     set(CMAKE_RC_FLAGS "/nologo")
-    if (CMAKE_SIZEOF_VOID_P EQUAL 4)
-        if (EXISTS "C:/Program Files/gstreamer/1.0/msvc_x86")
-            set(GST_BASE_PATH "C:/Program Files/gstreamer/1.0/msvc_x86")
-            set(GST_BASE_PATH_NATIVE "C:\\Program Files\\gstreamer\\1.0\\msvc_x86")
-        else()
-            set(GST_BASE_PATH "C:/Program Files/gstreamer/1.0/mingw_x86")
-            set(GST_BASE_PATH_NATIVE "C:\\Program Files\\gstreamer\\1.0\\mingw_x86")
+    if (NOT DEFINED GST_BASE_PATH)
+        if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+            if (EXISTS "C:/Program Files/gstreamer/1.0/msvc_x86")
+                set(GST_BASE_PATH "C:/Program Files/gstreamer/1.0/msvc_x86")
+            else()
+                set(GST_BASE_PATH "C:/Program Files/gstreamer/1.0/mingw_x86")
+            endif()
+        elseif (CMAKE_SIZEOF_VOID_P EQUAL 8)
+            if (EXISTS "C:/Program Files/gstreamer/1.0/msvc_x86_64")
+                set(GST_BASE_PATH "C:/Program Files/gstreamer/1.0/msvc_x86_64")
+            else()
+                set(GST_BASE_PATH "C:/Program Files/gstreamer/1.0/mingw_x86_64")
+            endif()
         endif()
-    elseif (CMAKE_SIZEOF_VOID_P EQUAL 8)
-        if (EXISTS "C:/Program Files/gstreamer/1.0/msvc_x86_64")
-            set(GST_BASE_PATH "C:/Program Files/gstreamer/1.0/msvc_x86_64")
-            set(GST_BASE_PATH_NATIVE "C:\\Program Files\\gstreamer\\1.0\\msvc_x86_64")
-        else()
-            set(GST_BASE_PATH "C:/Program Files/gstreamer/1.0/mingw_x86_64")
-            set(GST_BASE_PATH_NATIVE "C:\\Program Files\\gstreamer\\1.0\\mingw_x86_64")
-        endif()
-    endif ()
+    endif()
+    string(REPLACE "/" "\\" GST_BASE_PATH_NATIVE "${GST_BASE_PATH}")
     message("Using GST_BASE_PATH: ${GST_BASE_PATH}")
     message("Using GST_BASE_PATH_NATIVE: ${GST_BASE_PATH_NATIVE}")
     include_directories(
@@ -483,6 +482,7 @@ set(SOURCE_FILES
         src/dlgregularexport.cpp
         src/dlgregularimport.cpp
         src/dlgregularsingers.cpp
+        src/dlgregister.cpp
         src/dlgsettings.cpp
         src/dlgcdg.cpp
         src/okarchive.cpp
@@ -553,6 +553,7 @@ set(SOURCE_FILES
         src/dlgregularexport.h
         src/dlgregularimport.h
         src/dlgregularsingers.h
+        src/dlgregister.h
         src/dlgsettings.h
         src/dlgcdg.h
         src/okarchive.h
@@ -611,6 +612,7 @@ set(SOURCE_FILES
         src/dlgregularexport.ui
         src/dlgregularimport.ui
         src/dlgregularsingers.ui
+        src/dlgregister.ui
         src/dlgsettings.ui
         src/dlgcdg.ui
         src/bmdbdialog.ui
@@ -759,7 +761,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
             if (MACDEPLOYQT)
                 if (DEFINED MAC_SIGNING_IDENTITY)
                     add_custom_command(
-                            TARGET Auto-KJ
+                            TARGET auto-kj
                             COMMAND "${MACDEPLOYQT}"
                             VERBATIM
                             ARGS
@@ -769,7 +771,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
                     )
                 else ()
                     add_custom_command(
-                            TARGET Auto-KJ
+                            TARGET auto-kj
                             COMMAND "${MACDEPLOYQT}"
                             ARGS "${CMAKE_BINARY_DIR}/Auto-KJ.app"
                     )
@@ -787,7 +789,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
                     DESTINATION "Auto-KJ.app/Contents/Frameworks/GStreamer.framework"
             )
             add_custom_command(
-                    TARGET Auto-KJ
+                    TARGET auto-kj
                     POST_BUILD
                     COMMAND "cp"
                     ARGS
@@ -851,22 +853,47 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
             find_program(WINDEPLOYQT windeployqt HINTS ${qt5_install_prefix} PATH_SUFFIXES bin)
             if (WINDEPLOYQT)
                 add_custom_command(
-                        TARGET auto-kj
+                        TARGET auto-kj POST_BUILD
                         COMMAND "${WINDEPLOYQT}"
-                        ARGS "${CMAKE_BINARY_DIR}\\auto-kj.exe"
+                        ARGS "$<TARGET_FILE:auto-kj>"
                 )
             else ()
                 message("Can't find windeployqt")
             endif ()
+
+            # Copy OpenSSL 1.1 runtime DLLs required by Qt 5.15 for HTTPS/TLS.
+            # Look in Qt bin dir first, then the default OpenSSL Win64 install location.
+            foreach(_ssl_dll "libssl-1_1-x64.dll" "libcrypto-1_1-x64.dll")
+                set(_ssl_found FALSE)
+                foreach(_ssl_dir "${qt5_install_prefix}/bin" "C:/Program Files/OpenSSL-Win64/bin" "C:/Program Files/OpenSSL/bin")
+                    if(EXISTS "${_ssl_dir}/${_ssl_dll}")
+                        add_custom_command(
+                            TARGET auto-kj POST_BUILD
+                            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                                "${_ssl_dir}/${_ssl_dll}"
+                                "$<TARGET_FILE_DIR:auto-kj>/${_ssl_dll}"
+                        )
+                        message(STATUS "OpenSSL: will copy ${_ssl_dll} from ${_ssl_dir}")
+                        set(_ssl_found TRUE)
+                        break()
+                    endif()
+                endforeach()
+                if(NOT _ssl_found)
+                    message(WARNING
+                        "OpenSSL 1.1 DLL not found: ${_ssl_dll}. "
+                        "TLS/HTTPS will fail at runtime. "
+                        "Install Win64 OpenSSL 1.1 from https://slproweb.com/products/Win32OpenSSL.html "
+                        "or run: winget install ShiningLight.OpenSSL.Light")
+                endif()
+            endforeach()
         else ()
             message("QT_INSTALL_DIR not defined")
         endif ()
         add_custom_command(
-                TARGET auto-kj
-                COMMAND "xcopy"
-                ARGS "${GST_BASE_PATH_NATIVE}\\*" "/s" "/y"
-                COMMAND "xcopy"
-                ARGS "${GST_BASE_PATH_NATIVE}\\bin\\*.dll" "/y"
+                TARGET auto-kj POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E copy_directory "${GST_BASE_PATH}/bin" "$<TARGET_FILE_DIR:auto-kj>"
+                COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:auto-kj>/lib/gstreamer-1.0"
+                COMMAND "${CMAKE_COMMAND}" -E copy_directory "${GST_BASE_PATH}/lib/gstreamer-1.0" "$<TARGET_FILE_DIR:auto-kj>/lib/gstreamer-1.0"
         )
     endif ()
 endif ()

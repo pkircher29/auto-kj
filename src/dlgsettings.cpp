@@ -20,6 +20,7 @@
 
 #include "dlgsettings.h"
 #include "ui_dlgsettings.h"
+#include "dlgregister.h"
 #include <QGuiApplication>
 #include <QDesktopWidget>
 #include <QFontDialog>
@@ -32,6 +33,8 @@
 #include <QtSql>
 #include <QXmlStreamWriter>
 #include <QNetworkReply>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QAuthenticator>
 #include <QKeySequenceEdit>
 #include "audiorecorder.h"
@@ -225,7 +228,8 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     qobject_cast<QBoxLayout*>(ui->groupBoxRequestServer->layout())->addLayout(hlayGeoRadius);
     connect(spinGeoRadius, qOverload<double>(&QDoubleSpinBox::valueChanged), &m_settings, &Settings::setVenueGeofenceRadius);
 
-    ui->lineEditApiKey->setText(m_settings.requestServerApiKey());
+    ui->lineEditEmail->setText(m_settings.requestServerEmail());
+    ui->lineEditPassword->setText(m_settings.requestServerPassword());
     ui->checkBoxIgnoreCertErrors->setChecked(m_settings.requestServerIgnoreCertErrors());
     if ((m_settings.bgMode() == m_settings.BG_MODE_IMAGE) || (m_settings.bgSlideShowDir() == ""))
         ui->rbBgImage->setChecked(true);
@@ -763,8 +767,26 @@ void DlgSettings::on_rbBgImage_toggled(bool checked) {
     emit bgModeChanged(mode);
 }
 
-void DlgSettings::on_lineEditApiKey_editingFinished() {
-    m_settings.setRequestServerApiKey(ui->lineEditApiKey->text());
+void DlgSettings::on_lineEditEmail_editingFinished() {
+    m_settings.setRequestServerEmail(ui->lineEditEmail->text());
+}
+
+void DlgSettings::on_lineEditPassword_editingFinished() {
+    m_settings.setRequestServerPassword(ui->lineEditPassword->text());
+}
+
+void DlgSettings::on_btnCreateAccount_clicked() {
+    DlgRegister dlg(m_settings, this);
+    if (dlg.exec() == QDialog::Accepted) {
+        m_settings.setRequestServerEmail(dlg.registeredEmail());
+        m_settings.setRequestServerPassword(dlg.registeredPassword());
+        ui->lineEditEmail->setText(dlg.registeredEmail());
+        ui->lineEditPassword->setText(dlg.registeredPassword());
+    }
+}
+
+void DlgSettings::on_btnManageSubscription_clicked() {
+    QDesktopServices::openUrl(QUrl("https://auto-kj.com/pricing"));
 }
 
 void DlgSettings::on_checkBoxShowKAAAlert_toggled(bool checked) {
@@ -893,7 +915,8 @@ void DlgSettings::on_spinBoxAppFontSize_valueChanged(int arg1) {
 void DlgSettings::on_btnTestReqServer_clicked() {
     // Ensure latest field values are persisted even if the user hasn't tabbed out.
     m_settings.setRequestServerUrl(ui->lineEditUrl->text());
-    m_settings.setRequestServerApiKey(ui->lineEditApiKey->text());
+    m_settings.setRequestServerEmail(ui->lineEditEmail->text());
+    m_settings.setRequestServerPassword(ui->lineEditPassword->text());
 
     // Disconnect any previous test connections to avoid duplicate signals on repeated clicks
     static QMetaObject::Connection cFail, cSsl, cPass;
