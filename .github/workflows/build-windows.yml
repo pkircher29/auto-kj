@@ -36,24 +36,12 @@ jobs:
       - name: Install GStreamer SDK
         shell: powershell
         run: |
-          $gstVersion = "1.22.12"
-          $gstFile = "gstreamer-1.0-msvc-x86_64-$gstVersion.msi"
-          $gstUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$gstVersion/msvc/$gstFile"
-          curl.exe -L --retry 5 --retry-delay 3 -o $gstFile $gstUrl
-          if (!(Test-Path $gstFile)) { throw "GStreamer MSI download failed" }
-          Start-Process msiexec.exe -ArgumentList '/i', "$PWD\$gstFile", 'ADDLOCAL=ALL', '/quiet', '/norestart' -Wait
-          $gstBase = [Environment]::GetEnvironmentVariable('GSTREAMER_1_0_ROOT_MSVC_X86_64', 'Machine')
-          if (-not $gstBase) {
-            $gstCandidates = @(
-              'C:\gstreamer\1.0\msvc_x86_64',
-              'C:\gstreamer\1.0\x86_64',
-              "C:\Program Files\GStreamer\1.0\msvc_x86_64"
-            )
-            $gstBase = $gstCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-          }
-          if (-not $gstBase) { throw "GStreamer install path not found" }
-          Write-Host "GStreamer found at: $gstBase"
-          echo "GST_BASE_PATH=$gstBase" >> $env:GITHUB_ENV
+          $url = "https://github.com/pkircher29/gstreamer/releases/download/gst-sdk-1.26.9/gstreamer-sdk-1.26.9.zip"
+          curl.exe -L --retry 5 --retry-delay 3 -o gstreamer-sdk.zip $url
+          if (!(Test-Path "gstreamer-sdk.zip")) { throw "GStreamer SDK download failed" }
+          Expand-Archive -Path gstreamer-sdk.zip -DestinationPath "C:\gstreamer-sdk" -Force
+          if (!(Test-Path "C:\gstreamer-sdk\bin")) { throw "GStreamer SDK extract failed" }
+          echo "GST_BASE_PATH=C:\gstreamer-sdk" >> $env:GITHUB_ENV
 
       - name: Install OpenSSL 1.1
         shell: powershell
