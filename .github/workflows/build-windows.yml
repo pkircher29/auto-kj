@@ -37,10 +37,15 @@ jobs:
       - name: Install GStreamer SDK
         shell: powershell
         run: |
-          $url = "https://github.com/pkircher29/gstreamer/releases/download/gst-sdk-1.26.9/gstreamer-sdk-1.26.9.zip"
-          curl.exe -L --retry 3 -o gstreamer-sdk.zip $url
-          Expand-Archive -Path gstreamer-sdk.zip -DestinationPath "C:\gstreamer-sdk" -Force
-          if (!(Test-Path "C:\gstreamer-sdk\bin")) { throw "GStreamer SDK extract failed" }
+          $gstVersion = "1.22.12"
+          $gstFile = "gstreamer-1.0-msvc-x86_64-$gstVersion.msi"
+          $gstUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$gstVersion/msvc/$gstFile"
+          Invoke-WebRequest -Uri $gstUrl -OutFile $gstFile
+          Start-Process msiexec.exe -ArgumentList '/i', "$PWD\$gstFile", '/quiet', '/norestart' -Wait
+          if (!(Test-Path "C:\gstreamer\1.0\msvc_x86_64\bin")) {
+            throw "GStreamer install path not found at C:\gstreamer\1.0\msvc_x86_64\bin"
+          }
+          echo "GST_BASE_PATH=C:\gstreamer\1.0\msvc_x86_64" >> $env:GITHUB_ENV
 
       - name: Install OpenSSL 1.1
         shell: powershell
@@ -64,7 +69,7 @@ jobs:
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
             "-DDEPLOY_DEPS=ON" `
             "-DQT_INSTALL_PREFIX=$env:Qt5_DIR\..\..\.." `
-            "-DGST_BASE_PATH=C:\gstreamer-sdk"
+            "-DGST_BASE_PATH=$env:GST_BASE_PATH"
 
       - name: Build
         run: cmake --build build --config Release --parallel
