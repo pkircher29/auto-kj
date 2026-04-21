@@ -842,7 +842,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
             PROPERTY WIN32_EXECUTABLE true
     )
 
-    if (DEFINED DEPLOY_DEPS)
+    if (DEPLOY_DEPS)
         get_target_property(_qt5_qmake_location Qt5::qmake IMPORTED_LOCATION)
         execute_process(
                 COMMAND "${_qt5_qmake_location}" -query QT_INSTALL_PREFIX
