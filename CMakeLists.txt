@@ -102,7 +102,7 @@ if (NOT EXTERNAL_SPDLOG)
     else ()
         message(STATUS "No spdlog install found or CPM spdlog forced, pulling it in via CPM")
         include(cmake/CPM.cmake)
-        CPMAddPackage("gh:gabime/spdlog@1.8.2")
+        CPMAddPackage("gh:gabime/spdlog@1.12.0")
     endif ()
 endif ()
 
@@ -663,6 +663,8 @@ set(LIBRARIES
         Qt5::Svg
         Qt5::PrintSupport
         Qt5::Concurrent
+        Qt5::WebChannel
+        Qt5::WebEngineWidgets
         )
 
 # ── Platform-specific streaming deps ─────────────────────────────────────────
