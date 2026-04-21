@@ -41,17 +41,15 @@ jobs:
           $gstUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$gstVersion/msvc/$gstFile"
           curl.exe -L --retry 5 --retry-delay 3 -o $gstFile $gstUrl
           if (!(Test-Path $gstFile)) { throw "GStreamer MSI download failed" }
-          Start-Process msiexec.exe -ArgumentList '/i', "$PWD\$gstFile", '/quiet', '/norestart' -Wait
-          $gstCandidates = @(
-            'C:\gstreamer\1.0\msvc_x86_64',
-            'C:\gstreamer\1.0\x86_64',
-            "C:\Program Files\GStreamer\1.0\msvc_x86_64"
-          )
-          $gstBase = $gstCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          Start-Process msiexec.exe -ArgumentList '/i', "$PWD\$gstFile", 'ADDLOCAL=ALL', '/quiet', '/norestart' -Wait
+          $gstBase = [Environment]::GetEnvironmentVariable('GSTREAMER_1_0_ROOT_MSVC_X86_64', 'Machine')
           if (-not $gstBase) {
-            Write-Host "Searching for GStreamer install..."
-            $gstBase = (Get-ChildItem -Path C:\ -Filter 'gst-launch-1.0.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).DirectoryName
-            if ($gstBase) { $gstBase = Split-Path $gstBase -Parent }
+            $gstCandidates = @(
+              'C:\gstreamer\1.0\msvc_x86_64',
+              'C:\gstreamer\1.0\x86_64',
+              "C:\Program Files\GStreamer\1.0\msvc_x86_64"
+            )
+            $gstBase = $gstCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           }
           if (-not $gstBase) { throw "GStreamer install path not found" }
           Write-Host "GStreamer found at: $gstBase"
