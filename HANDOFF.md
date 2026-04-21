@@ -29,20 +29,22 @@ Ship a stable Windows desktop build, verify the GitHub Windows artifact pipeline
 - [x] Lisa synced to origin/master (commit `01c15268`)
 - [x] Lisa: fixed merge conflict + missing Qt modules
 - [x] Lisa: re-triggered Windows build
-- [ ] Monitor build run `24662134822` or `24662137786`
+- [x] Lisa: added qtwebchannel via `extra` param (build `24718824821` in progress)
+- [ ] Monitor build run `24718824821`
 - [ ] If green, prepare tag/release decision
 - [ ] If red, fix the first failing step only
 
 ## Blocked
-- [ ] None currently
+- [ ] Waiting on Qt WebChannel module availability in CI
 
 ## Next
-- [ ] Lisa: finish backend playback worker in autokj-pro (separate repo)
-- [ ] Paul: drive safe, build refrigerator wall, back Thursday
+- [x] Lisa: pivot back to autokj-pro playback backend work
+- [ ] Paul/Roger: monitor Windows build, merge any fix branches
 - [ ] Target by Thursday: released auto-kj + pro on deck
 
 ## Handoff notes
 - **2026-04-20 10:43 UTC** — Lisa fixed Roger's accidental merge conflict markers in `autokjserverapi.cpp` and added missing Qt modules. Build in progress.
+- **2026-04-21 11:03 UTC** — Lisa pivoting back to autokj-pro. Windows build `24718824821` running with qtwebchannel via `extra` param. Paul/Roger to monitor.
 
 ## Handoff rules
 1. Update this file before switching context
