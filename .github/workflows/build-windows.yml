@@ -42,10 +42,20 @@ jobs:
           curl.exe -L --retry 5 --retry-delay 3 -o $gstFile $gstUrl
           if (!(Test-Path $gstFile)) { throw "GStreamer MSI download failed" }
           Start-Process msiexec.exe -ArgumentList '/i', "$PWD\$gstFile", '/quiet', '/norestart' -Wait
-          if (!(Test-Path "C:\gstreamer\1.0\msvc_x86_64\bin")) {
-            throw "GStreamer install path not found at C:\gstreamer\1.0\msvc_x86_64\bin"
+          $gstCandidates = @(
+            'C:\gstreamer\1.0\msvc_x86_64',
+            'C:\gstreamer\1.0\x86_64',
+            "C:\Program Files\GStreamer\1.0\msvc_x86_64"
+          )
+          $gstBase = $gstCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $gstBase) {
+            Write-Host "Searching for GStreamer install..."
+            $gstBase = (Get-ChildItem -Path C:\ -Filter 'gst-launch-1.0.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).DirectoryName
+            if ($gstBase) { $gstBase = Split-Path $gstBase -Parent }
           }
-          echo "GST_BASE_PATH=C:\gstreamer\1.0\msvc_x86_64" >> $env:GITHUB_ENV
+          if (-not $gstBase) { throw "GStreamer install path not found" }
+          Write-Host "GStreamer found at: $gstBase"
+          echo "GST_BASE_PATH=$gstBase" >> $env:GITHUB_ENV
 
       - name: Install OpenSSL 1.1
         shell: powershell
@@ -80,7 +90,7 @@ jobs:
           $releaseDir = "build\Release"
           & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --no-translations "$releaseDir\auto-kj.exe"
 
-          $gstBin = "C:\gstreamer-sdk\bin"
+          $gstBin = "$env:GST_BASE_PATH\bin"
           Copy-Item "$gstBin\*.dll" -Destination $releaseDir -Force
 
           $openSslNames = @(
