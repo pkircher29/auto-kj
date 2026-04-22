@@ -37,12 +37,10 @@
 Settings settings;
 IdleDetect *filter;
 
-//todo: This should be me moved into main after migration to spdlog is complete
-//      It's currently only global for use by the QDebug callback
-std::shared_ptr<spdlog::async_logger> logger;
-
-
 void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg) {
+    const auto logger = spdlog::get("logger");
+    if (!logger)
+        return;
     bool loggingEnabled = settings.logEnabled();
     std::string logMsg = msg.toStdString();
     if (context.function) {
@@ -83,8 +81,8 @@ int main(int argc, char *argv[]) {
     auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logFilePath.toStdString(), false);
     spdlog::init_thread_pool(8192, 2);
     std::vector<spdlog::sink_ptr> sinks{console_sink, file_sink};
-    logger = std::make_shared<spdlog::async_logger>("logger", sinks.begin(), sinks.end(), spdlog::thread_pool(),
-                                                    spdlog::async_overflow_policy::block);
+    auto logger = std::make_shared<spdlog::async_logger>("logger", sinks.begin(), sinks.end(), spdlog::thread_pool(),
+                                                         spdlog::async_overflow_policy::block);
     spdlog::register_logger(logger);
     logger->set_level(spdlog::level::trace);
     spdlog::flush_every(std::chrono::seconds(1));

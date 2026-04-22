@@ -32,6 +32,28 @@ find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Sql Network WebSockets Widgets Concurrent Svg PrintSupport WebChannel WebEngineWidgets REQUIRED)
 
 include(FetchContent)
+
+option(AUTOKJ_USE_QTKEYCHAIN "Use QtKeychain for secure request-server credential storage" ON)
+if (AUTOKJ_USE_QTKEYCHAIN)
+    find_package(qt5keychain QUIET CONFIG)
+    if (NOT TARGET qt5keychain)
+        include(cmake/CPM.cmake)
+        CPMAddPackage(
+                NAME qtkeychain
+                GITHUB_REPOSITORY frankosterfeld/qtkeychain
+                GIT_TAG master
+                OPTIONS
+                    "BUILD_WITH_QT6 OFF"
+                    "BUILD_TEST_APPLICATION OFF"
+                    "BUILD_TRANSLATIONS OFF"
+        )
+    endif ()
+    if (TARGET qt5keychain)
+        list(APPEND LIBRARIES qt5keychain)
+        add_compile_definitions(HAVE_QTKEYCHAIN)
+    endif ()
+endif ()
+
 FetchContent_Declare(
   qrencode
   GIT_REPOSITORY https://github.com/fukuchi/libqrencode.git
