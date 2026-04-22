@@ -63,6 +63,7 @@ set(WITHOUT_ENCODE_PROG ON CACHE BOOL "" FORCE) # Don't build CLI tool
 set(WITHOUT_TOOLS ON CACHE BOOL "" FORCE)       # Newer qrencode variable name
 set(WITH_TOOLS OFF CACHE BOOL "" FORCE)
 set(WITH_TESTS OFF CACHE BOOL "" FORCE) # Don't build tests
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(qrencode)
 set_target_properties(qrencode PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
 
@@ -688,6 +689,10 @@ set(LIBRARIES
         Qt5::WebChannel
         Qt5::WebEngineWidgets
         )
+
+if (TARGET qt5keychain)
+    list(APPEND LIBRARIES qt5keychain)
+endif ()
 
 # ── Platform-specific streaming deps ─────────────────────────────────────────
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
