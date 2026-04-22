@@ -1,13 +1,11 @@
 #include "dlgregister.h"
 #include "ui_dlgregister.h"
 
-#include <QRegularExpression>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QNetworkRequest>
 #include <QNetworkReply>
-#include <QEventLoop>
+#include <QNetworkRequest>
 #include <QUrl>
 
 DlgRegister::DlgRegister(Settings &settings, QWidget *parent)
@@ -19,16 +17,27 @@ DlgRegister::DlgRegister(Settings &settings, QWidget *parent)
 
 DlgRegister::~DlgRegister()
 {
+    if (m_pendingReply)
+        m_pendingReply->deleteLater();
     delete ui;
 }
 
-QString DlgRegister::registeredEmail() const    { return m_email; }
-QString DlgRegister::registeredPassword() void DlgRegister::on_btnCreate_clicked()
+QString DlgRegister::registeredEmail() const
 {
-    const QString name     = ui->lineEditName->text().trimmed();
-    const QString email    = ui->lineEditEmail->text().trimmed();
+    return m_email;
+}
+
+QString DlgRegister::registeredPassword() const
+{
+    return m_password;
+}
+
+void DlgRegister::on_btnCreate_clicked()
+{
+    const QString name = ui->lineEditName->text().trimmed();
+    const QString email = ui->lineEditEmail->text().trimmed();
     const QString password = ui->lineEditPassword->text();
-    const QString confirm  = ui->lineEditConfirm->text();
+    const QString confirm = ui->lineEditConfirm->text();
 
     if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
         showError("All fields are required.");
@@ -38,20 +47,16 @@ QString DlgRegister::registeredPassword() void DlgRegister::on_btnCreate_clicked
         showError("Password must be at least 8 characters.");
         return;
     }
-    
-    // Password complexity requirement
-    QRegularExpression complexRegex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{8,}$");
-    if (!complexRegex.match(password).hasMatch()) {
-        showError("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
-        return;
-    }
-
     if (password != confirm) {
         showError("Passwords do not match.");
         return;
     }
 
+    if (m_pendingReply)
+        return;
+
     setWorking(true);
+    ui->labelError->hide();
 
     QString baseUrl = m_settings.requestServerUrl();
     if (baseUrl.endsWith("/ws/kj"))
@@ -64,21 +69,24 @@ QString DlgRegister::registeredPassword() void DlgRegister::on_btnCreate_clicked
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 
     QJsonObject body;
-    body["email"]        = email;
-    body["password"]     = password;
+    body["email"] = email;
+    body["password"] = password;
     body["display_name"] = name;
-    
+
     m_email = email;
     m_password = password;
 
-    QNetworkReply *reply = m_nam.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
-    connect(reply, &QNetworkReply::finished, this, &DlgRegister::onRegistrationFinished);
+    m_pendingReply = m_nam.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(m_pendingReply, &QNetworkReply::finished, this, &DlgRegister::onRegistrationFinished);
 }
 
 void DlgRegister::onRegistrationFinished()
 {
-    QNetworkReply *reply = qobject_cast<QNetworkReply *>(sender());
-    if (!reply) return;
+    if (!m_pendingReply)
+        return;
+
+    QNetworkReply *reply = m_pendingReply;
+    m_pendingReply.clear();
 
     const QByteArray responseBody = reply->readAll();
     const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -87,8 +95,7 @@ void DlgRegister::onRegistrationFinished()
 
     const QJsonDocument doc = QJsonDocument::fromJson(responseBody);
 
-    // Strictly expect 201 Created from backend
-    if (status == 201) {
+    if (status == 201 || (status == 200 && doc.isObject() && doc.object().contains("access_token"))) {
         accept();
         return;
     }
@@ -100,15 +107,18 @@ void DlgRegister::onRegistrationFinished()
             detail = d.toString();
         else if (d.isArray()) {
             QStringList msgs;
-            for (const auto &v : d.toArray())
-                if (v.isObject()) msgs << v.toObject().value("msg").toString();
-            if (!msgs.isEmpty()) detail = msgs.join(", ");
+            for (const auto &v : d.toArray()) {
+                if (v.isObject())
+                    msgs << v.toObject().value("msg").toString();
+            }
+            if (!msgs.isEmpty())
+                detail = msgs.join(", ");
         }
     }
     showError(detail);
 }
 
-void DlgRegister::setWorking(bool working)ster::setWorking(bool working)
+void DlgRegister::setWorking(bool working)
 {
     ui->btnCreate->setEnabled(!working);
     ui->btnCreate->setText(working ? "Creating…" : "Create Account");

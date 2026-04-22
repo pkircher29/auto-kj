@@ -3,8 +3,10 @@
 
 #include <QDialog>
 #include <QNetworkAccessManager>
+#include <QPointer>
 #include "settings.h"
 
+class QNetworkReply;
 namespace Ui { class DlgRegister; }
 
 class DlgRegister : public QDialog
@@ -25,6 +27,7 @@ private:
     Ui::DlgRegister *ui;
     Settings &m_settings;
     QNetworkAccessManager m_nam;
+    QPointer<QNetworkReply> m_pendingReply;
     QString m_email;
     QString m_password;
 
