@@ -111,6 +111,28 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     else {
         ui->comboBoxBAudioDevices->setCurrentIndex(selDevice);
     }
+    reloadSongLibraryDirs();
+    connect(ui->btnAddSongLibraryDir, &QPushButton::clicked, this, [this]() {
+        const QString dir = QFileDialog::getExistingDirectory(this, tr("Add Song Library Directory"));
+        if (dir.isEmpty())
+            return;
+        QStringList dirs = currentSongLibraryDirs();
+        if (!dirs.contains(dir, Qt::CaseInsensitive)) {
+            dirs.append(dir);
+            m_settings.setMediaDirs(dirs);
+            reloadSongLibraryDirs();
+        }
+    });
+    connect(ui->btnRemoveSongLibraryDir, &QPushButton::clicked, this, [this]() {
+        auto *item = ui->listWidgetSongLibraryDirs->currentItem();
+        if (!item)
+            return;
+        QStringList dirs = currentSongLibraryDirs();
+        dirs.removeAll(item->text());
+        m_settings.setMediaDirs(dirs);
+        reloadSongLibraryDirs();
+    });
+
     ui->checkBoxProgressiveSearch->setChecked(m_settings.progressiveSearchEnabled());
     ui->horizontalSliderTickerSpeed->setValue(m_settings.tickerSpeed());
     QString ss = ui->pushButtonTextColor->styleSheet();
@@ -376,12 +398,30 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     connect(&songbookApi, &AutoKJServerClient::entitledSystemCountChanged, this, &DlgSettings::entitledSystemCountChanged);
     connect(ui->cbxRotShowNextSong, &QCheckBox::toggled, &m_settings, &Settings::setRotationShowNextSong);
     connect(ui->cbxRotShowNextSong, &QCheckBox::toggled, this, &DlgSettings::rotationShowNextSongChanged);
+    connect(ui->listWidgetSongLibraryDirs, &QListWidget::currentRowChanged, this,
+            [this](int row) { ui->btnRemoveSongLibraryDir->setEnabled(row >= 0); });
+    ui->btnRemoveSongLibraryDir->setEnabled(ui->listWidgetSongLibraryDirs->currentRow() >= 0);
     setupHotkeysForm();
     m_pageSetupDone = true;
 }
 
 DlgSettings::~DlgSettings() {
     delete ui;
+}
+
+QStringList DlgSettings::currentSongLibraryDirs() const
+{
+    QStringList dirs;
+    for (int i = 0; i < ui->listWidgetSongLibraryDirs->count(); ++i)
+        dirs.append(ui->listWidgetSongLibraryDirs->item(i)->text());
+    return dirs;
+}
+
+void DlgSettings::reloadSongLibraryDirs()
+{
+    ui->listWidgetSongLibraryDirs->clear();
+    ui->listWidgetSongLibraryDirs->addItems(m_settings.mediaDirs());
+    ui->btnRemoveSongLibraryDir->setEnabled(ui->listWidgetSongLibraryDirs->currentRow() >= 0);
 }
 
 QStringList DlgSettings::getMonitors() {

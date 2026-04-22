@@ -163,6 +163,8 @@ public:
     // DJ Profiles
     QStringList djList() const;
     void setDjList(const QStringList &djs);
+    QStringList mediaDirs() const;
+    void setMediaDirs(const QStringList &dirs);
     QString activeDj() const;
     void setActiveDj(const QString &dj);
     // Per-singer queue limit (enforced locally in addition to server-side)

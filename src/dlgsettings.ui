@@ -1001,6 +1001,54 @@ QPushButton:default {
             </item>
            </layout>
           </widget>
+          <widget class="QWidget" name="tabSongLibrary">
+           <attribute name="title">
+            <string>Song Library</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="verticalLayoutSongLibrary">
+            <item>
+             <widget class="QLabel" name="labelSongLibraryDirs">
+              <property name="text">
+               <string>Media directories scanned for karaoke files</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QListWidget" name="listWidgetSongLibraryDirs"/>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayoutSongLibraryButtons">
+              <item>
+               <widget class="QPushButton" name="btnAddSongLibraryDir">
+                <property name="text">
+                 <string>Add Directory</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btnRemoveSongLibraryDir">
+                <property name="text">
+                 <string>Remove Directory</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacerSongLibrary">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
           <widget class="QWidget" name="tabWidgetPage3">
            <attribute name="title">
             <string>Network</string>

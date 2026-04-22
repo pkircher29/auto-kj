@@ -1101,6 +1101,16 @@ void Settings::setDjList(const QStringList &djs)
     emit djListChanged();
 }
 
+QStringList Settings::mediaDirs() const
+{
+    return settings->value("media_dirs").toStringList();
+}
+
+void Settings::setMediaDirs(const QStringList &dirs)
+{
+    settings->setValue("media_dirs", dirs);
+}
+
 QString Settings::activeDj() const
 {
     return settings->value("activeDj", QString()).toString();
