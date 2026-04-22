@@ -60,6 +60,7 @@ public:
     virtual void test() = 0;
     virtual void setInterval(int intervalSecs) = 0;
     virtual void authenticate() = 0;
+    virtual bool changePassword(const QString &currentPassword, const QString &newPassword, QString *errorOut = nullptr) = 0;
 
     virtual void refreshRequests() {}
     virtual void refreshVenues(bool blocking = false) = 0;

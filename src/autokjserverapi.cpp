@@ -1,4 +1,4 @@
-﻿#include "autokjserverapi.h"
+#include "autokjserverapi.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -1080,6 +1080,50 @@ void AutoKJServerAPI::setAuthHeader(QNetworkRequest &request, const QString &tok
 {
     request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+}
+
+bool AutoKJServerAPI::changePassword(const QString &currentPassword, const QString &newPassword, QString *errorOut)
+{
+    QString token = ensureToken(errorOut);
+    if (token.isEmpty())
+        return false;
+
+    QString baseUrl = m_settings.requestServerUrl();
+    if (baseUrl.endsWith("/ws/kj"))
+        baseUrl.chop(6);
+    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
+        baseUrl = "https://" + baseUrl;
+
+    QNetworkRequest request(QUrl(baseUrl + "/api/v1/dashboard/kj/change-password"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    setAuthHeader(request, token);
+
+    QJsonObject body;
+    body["current_password"] = currentPassword;
+    body["new_password"] = newPassword;
+
+    QNetworkReply *reply = m_nam->post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    QEventLoop loop;
+    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    loop.exec();
+
+    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const QByteArray responseBody = reply->readAll();
+    reply->deleteLater();
+
+    if (status == 200) {
+        if (errorOut) errorOut->clear();
+        return true;
+    }
+
+    const QJsonDocument doc = QJsonDocument::fromJson(responseBody);
+    QString details = reply->errorString();
+    if (doc.isObject()) {
+        const QString d = doc.object().value("detail").toString();
+        if (!d.isEmpty()) details = d;
+    }
+    if (errorOut) *errorOut = details;
+    return false;
 }
 
 bool AutoKJServerAPI::testHttpAuth(QString *errorOut)

@@ -62,6 +62,9 @@ public:
     /** Re-send authentication (e.g. after venue change) */
     void authenticate() override;
 
+    /** Change the logged-in user's password */
+    bool changePassword(const QString &currentPassword, const QString &newPassword, QString *errorOut = nullptr);
+
     // ── Compatibility stubs (OKJSongbookAPI drop-in) ──────────────────────────
 
     /** No-op: requests arrive via push; kept for drop-in compatibility */

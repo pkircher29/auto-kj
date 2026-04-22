@@ -1247,3 +1247,47 @@ void DlgSettings::comboBoxFileLogLevelChanged(int index) {
 }
 
 
+
+
+#include "autokjserverapi.h"
+#include <QMessageBox>
+
+void DlgSettings::on_btnSubmitChangePassword_clicked()
+{
+    QString currentPassword = ui->lineEditCurrentPassword->text();
+    QString newPassword = ui->lineEditNewPassword->text();
+    QString confirmPassword = ui->lineEditConfirmPassword->text();
+
+    if (currentPassword.isEmpty() || newPassword.isEmpty() || confirmPassword.isEmpty()) {
+        QMessageBox::warning(this, "Error", "Please fill in all password fields.");
+        return;
+    }
+
+    if (newPassword != confirmPassword) {
+        QMessageBox::warning(this, "Error", "New password and confirm password do not match.");
+        return;
+    }
+
+    if (newPassword.length() < 8) {
+        QMessageBox::warning(this, "Error", "New password must be at least 8 characters long.");
+        return;
+    }
+
+    ui->btnSubmitChangePassword->setEnabled(false);
+    ui->btnSubmitChangePassword->setText("Updating...");
+
+    QString errorStr;
+    bool success = songbookApi.changePassword(currentPassword, newPassword, &errorStr);
+
+    ui->btnSubmitChangePassword->setEnabled(true);
+    ui->btnSubmitChangePassword->setText("Change Password");
+
+    if (success) {
+        ui->lineEditCurrentPassword->clear();
+        ui->lineEditNewPassword->clear();
+        ui->lineEditConfirmPassword->clear();
+        QMessageBox::information(this, "Success", "Password updated successfully.");
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to update password:\n" + errorStr);
+    }
+}

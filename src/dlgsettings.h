@@ -118,6 +118,7 @@ private slots:
     void on_radioButtonFullRotation_toggled(bool checked);
     void on_spinBoxTickerSingers_valueChanged(int arg1);
     void on_groupBoxTicker_toggled(bool arg1);
+    void on_btnSubmitChangePassword_clicked();
     void on_lineEditUrl_editingFinished();
     void on_checkBoxIgnoreCertErrors_toggled(bool checked);
     void on_groupBoxRequestServer_toggled(bool arg1);
