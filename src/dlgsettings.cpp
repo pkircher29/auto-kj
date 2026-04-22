@@ -1291,3 +1291,21 @@ void DlgSettings::on_btnSubmitChangePassword_clicked()
         QMessageBox::warning(this, "Error", "Failed to update password:\n" + errorStr);
     }
 }
+
+
+#include <QDesktopServices>
+#include <QUrl>
+
+void DlgSettings::on_btnForgotPassword_clicked()
+{
+    QString baseUrl = m_settings.requestServerUrl();
+    if (baseUrl.endsWith("/ws/kj"))
+        baseUrl.chop(6);
+    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
+        baseUrl = "https://" + baseUrl;
+        
+    // Open the browser to the online dashboard, where the forgot password flow is available.
+    // The DJ dashboard is typically hosted at the root or /dashboard.
+    // Assuming root for Auto-KJ V3 web interface.
+    QDesktopServices::openUrl(QUrl(baseUrl + "/?tab=forgot"));
+}

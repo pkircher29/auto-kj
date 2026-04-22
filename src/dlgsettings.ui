@@ -1082,21 +1082,54 @@ QPushButton:default {
                   </widget>
                  </item>
                  <item row="4" column="1">
-                  <widget class="QPushButton" name="btnCreateAccount">
-                   <property name="toolTip">
-                    <string>Create a new Auto-KJ account</string>
-                   </property>
-                   <property name="text">
-                    <string>No account? Create one…</string>
-                   </property>
-                   <property name="flat">
-                    <bool>true</bool>
-                   </property>
-                   <property name="styleSheet">
-                    <string>QPushButton { color: palette(link); text-align: left; padding: 0; border: none; font-size: 11px; }</string>
-                   </property>
-                  </widget>
-                 </item>
+                    <layout class="QHBoxLayout" name="horizontalLayoutAuthLinks">
+                     <item>
+                      <widget class="QPushButton" name="btnCreateAccount">
+                       <property name="toolTip">
+                        <string>Create a new Auto-KJ account</string>
+                       </property>
+                       <property name="text">
+                        <string>No account? Create one?</string>
+                       </property>
+                       <property name="flat">
+                        <bool>true</bool>
+                       </property>
+                       <property name="styleSheet">
+                        <string>QPushButton { color: palette(link); text-align: left; padding: 0; border: none; font-size: 11px; }</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <spacer name="horizontalSpacerAuthLinks">
+                       <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>40</width>
+                         <height>20</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="btnForgotPassword">
+                       <property name="toolTip">
+                        <string>Reset your Auto-KJ account password</string>
+                       </property>
+                       <property name="text">
+                        <string>Forgot password?</string>
+                       </property>
+                       <property name="flat">
+                        <bool>true</bool>
+                       </property>
+                       <property name="styleSheet">
+                        <string>QPushButton { color: palette(link); text-align: right; padding: 0; border: none; font-size: 11px; }</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </item>
                  <item row="5" column="0">
                   <widget class="QLabel" name="label_30">
                    <property name="text">
