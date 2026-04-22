@@ -147,6 +147,7 @@ private:
     QString m_lastEmail;
     QString m_lastPassword;
     QString m_lastToken;
+    QString m_lastApiKey;
     int m_lastVenueId{-1};
 
     OkjsRequests m_requests;
@@ -165,6 +166,7 @@ private:
     bool login(QString *errorOut = nullptr);
     QString ensureToken(QString *errorOut = nullptr);
     void setAuthHeader(QNetworkRequest &request, const QString &token);
+    bool hasHttpApiKey() const;
     bool testHttpAuth(QString *errorOut = nullptr);
     bool tryLegacySongDbSync(QString *errorOut = nullptr);
 };

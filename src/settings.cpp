@@ -48,9 +48,13 @@ namespace {
 
 constexpr auto kRequestServerPasswordSetting = "requestServerPassword";
 constexpr auto kRequestServerTokenSetting = "requestServerToken";
+constexpr auto kRequestServerApiKeySetting = "requestServerApiKey";
+constexpr auto kYoutubeApiKeySetting = "streaming/youtube_api_key";
 constexpr auto kKeychainService = "Auto-KJ";
 constexpr auto kKeychainPasswordKey = "request-server-password";
 constexpr auto kKeychainTokenKey = "request-server-token";
+constexpr auto kKeychainApiKey = "request-server-api-key";
+constexpr auto kKeychainYoutubeApiKey = "streaming-youtube-api-key";
 
 #ifdef HAVE_QTKEYCHAIN
 bool isKeychainUnavailable(const QKeychain::Error error)
@@ -136,7 +140,7 @@ void deleteSecretFromKeychain(const QString &key)
 }
 #endif
 
-QString readRequestServerSecret(QSettings *settings, const QString &settingsKey, const QString &keychainKey)
+QString readStoredSecret(QSettings *settings, const QString &settingsKey, const QString &keychainKey)
 {
     const QString legacyValue = settings->value(settingsKey, QString()).toString();
 
@@ -161,7 +165,7 @@ QString readRequestServerSecret(QSettings *settings, const QString &settingsKey,
     return legacyValue;
 }
 
-void writeRequestServerSecret(QSettings *settings, const QString &settingsKey, const QString &keychainKey, const QString &value)
+void writeStoredSecret(QSettings *settings, const QString &settingsKey, const QString &keychainKey, const QString &value)
 {
     if (value.isEmpty()) {
 #ifdef HAVE_QTKEYCHAIN
@@ -988,7 +992,7 @@ void Settings::setRequestServerEmail(const QString &email)
     if (requestServerEmail() == trimmed)
         return;
     settings->setValue("requestServerEmail", trimmed);
-    writeRequestServerSecret(settings, QString::fromLatin1(kRequestServerTokenSetting),
+    writeStoredSecret(settings, QString::fromLatin1(kRequestServerTokenSetting),
                              QString::fromLatin1(kKeychainTokenKey), {});
     setPremiumAntiChaosAuthorized(false);
     emit requestServerCredentialsChanged();
@@ -996,7 +1000,7 @@ void Settings::setRequestServerEmail(const QString &email)
 
 QString Settings::requestServerPassword() const
 {
-    return readRequestServerSecret(settings, QString::fromLatin1(kRequestServerPasswordSetting),
+    return readStoredSecret(settings, QString::fromLatin1(kRequestServerPasswordSetting),
                                    QString::fromLatin1(kKeychainPasswordKey));
 }
 
@@ -1004,9 +1008,9 @@ void Settings::setRequestServerPassword(const QString &password)
 {
     if (requestServerPassword() == password)
         return;
-    writeRequestServerSecret(settings, QString::fromLatin1(kRequestServerPasswordSetting),
+    writeStoredSecret(settings, QString::fromLatin1(kRequestServerPasswordSetting),
                              QString::fromLatin1(kKeychainPasswordKey), password);
-    writeRequestServerSecret(settings, QString::fromLatin1(kRequestServerTokenSetting),
+    writeStoredSecret(settings, QString::fromLatin1(kRequestServerTokenSetting),
                              QString::fromLatin1(kKeychainTokenKey), {});
     setPremiumAntiChaosAuthorized(false);
     emit requestServerCredentialsChanged();
@@ -1014,7 +1018,7 @@ void Settings::setRequestServerPassword(const QString &password)
 
 QString Settings::requestServerToken() const
 {
-    return readRequestServerSecret(settings, QString::fromLatin1(kRequestServerTokenSetting),
+    return readStoredSecret(settings, QString::fromLatin1(kRequestServerTokenSetting),
                                    QString::fromLatin1(kKeychainTokenKey));
 }
 
@@ -1022,8 +1026,24 @@ void Settings::setRequestServerToken(const QString &token)
 {
     if (requestServerToken() == token)
         return;
-    writeRequestServerSecret(settings, QString::fromLatin1(kRequestServerTokenSetting),
+    writeStoredSecret(settings, QString::fromLatin1(kRequestServerTokenSetting),
                              QString::fromLatin1(kKeychainTokenKey), token);
+    emit requestServerCredentialsChanged();
+}
+
+QString Settings::requestServerApiKey() const
+{
+    return readStoredSecret(settings, QString::fromLatin1(kRequestServerApiKeySetting),
+                            QString::fromLatin1(kKeychainApiKey)).trimmed();
+}
+
+void Settings::setRequestServerApiKey(const QString &apiKey)
+{
+    const QString trimmed = apiKey.trimmed();
+    if (requestServerApiKey() == trimmed)
+        return;
+    writeStoredSecret(settings, QString::fromLatin1(kRequestServerApiKeySetting),
+                      QString::fromLatin1(kKeychainApiKey), trimmed);
     emit requestServerCredentialsChanged();
 }
 
@@ -1526,6 +1546,21 @@ bool Settings::bmShowMetadata()
 void Settings::bmSetShowMetadata(bool show)
 {
     settings->setValue("showMetadata", show);
+}
+
+QString Settings::youtubeApiKey() const
+{
+    return readStoredSecret(settings, QString::fromLatin1(kYoutubeApiKeySetting),
+                            QString::fromLatin1(kKeychainYoutubeApiKey)).trimmed();
+}
+
+void Settings::setYoutubeApiKey(const QString &apiKey)
+{
+    const QString trimmed = apiKey.trimmed();
+    if (youtubeApiKey() == trimmed)
+        return;
+    writeStoredSecret(settings, QString::fromLatin1(kYoutubeApiKeySetting),
+                      QString::fromLatin1(kKeychainYoutubeApiKey), trimmed);
 }
 
 int Settings::bmVolume()

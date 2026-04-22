@@ -160,16 +160,18 @@ void AutoKJServerAPI::reconfigureFromSettings(bool force)
     const QString email = m_settings.requestServerEmail().trimmed();
     const QString password = m_settings.requestServerPassword();
     const QString token = m_settings.requestServerToken().trimmed();
+    const QString apiKey = m_settings.requestServerApiKey().trimmed();
     const int venueId = m_settings.requestServerVenue();
 
     if (!force && enabled == m_reconnectEnabled && serverUrl == m_lastServerUrl &&
         email == m_lastEmail && password == m_lastPassword && token == m_lastToken &&
-        venueId == m_lastVenueId) {
+        apiKey == m_lastApiKey && venueId == m_lastVenueId) {
         return;
     }
 
     const bool endpointChanged = force || serverUrl != m_lastServerUrl ||
-        email != m_lastEmail || password != m_lastPassword || token != m_lastToken;
+        email != m_lastEmail || password != m_lastPassword || token != m_lastToken ||
+        apiKey != m_lastApiKey;
     const bool venueChanged = force || venueId != m_lastVenueId;
 
     m_reconnectEnabled = enabled;
@@ -177,6 +179,7 @@ void AutoKJServerAPI::reconfigureFromSettings(bool force)
     m_lastEmail = email;
     m_lastPassword = password;
     m_lastToken = token;
+    m_lastApiKey = apiKey;
     m_lastVenueId = venueId;
 
     if (!enabled) {
@@ -496,8 +499,8 @@ void AutoKJServerAPI::setAccepting(bool enabled, bool offerEndShowPrompt)
 
     const QString token = ensureToken();
     const int venueId = m_settings.requestServerVenue();
-    if (token.isEmpty() || venueId <= 0) {
-        qWarning("[AutoKJ] Cannot update accepting state: missing token or venue.");
+    if ((token.isEmpty() && !hasHttpApiKey()) || venueId <= 0) {
+        qWarning("[AutoKJ] Cannot update accepting state: missing auth or venue.");
         return;
     }
 
@@ -507,7 +510,7 @@ void AutoKJServerAPI::setAccepting(bool enabled, bool offerEndShowPrompt)
     if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
         baseUrl = "https://" + baseUrl;
 
-    QNetworkRequest request(QUrl(baseUrl + QString("/api/v1/kj/venues/%1").arg(venueId)));
+    QNetworkRequest request(QUrl(baseUrl + QString("/api/v1/desktop/kj/venues/%1").arg(venueId)));
     setAuthHeader(request, token);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
@@ -760,7 +763,7 @@ void AutoKJServerAPI::dbUpdateCanceled()
 bool AutoKJServerAPI::tryLegacySongDbSync(QString *errorOut)
 {
     const QString token = ensureToken(errorOut);
-    if (token.isEmpty())
+    if (token.isEmpty() && !hasHttpApiKey())
         return false;
 
     QString baseUrl = m_settings.requestServerUrl();
@@ -792,7 +795,7 @@ bool AutoKJServerAPI::tryLegacySongDbSync(QString *errorOut)
     };
 
     auto postModern = [&](const QJsonObject &obj) -> bool {
-        QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/songs/sync"));
+        QNetworkRequest request(QUrl(baseUrl + "/api/v1/desktop/kj/songs/sync"));
         setAuthHeader(request, token);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         QNetworkReply *reply = m_nam->post(request, QJsonDocument(obj).toJson(QJsonDocument::Compact));
@@ -905,7 +908,7 @@ bool AutoKJServerAPI::tryLegacySongDbSync(QString *errorOut)
 void AutoKJServerAPI::refreshVenues(bool blocking)
 {
     const QString token = ensureToken();
-    if (token.isEmpty())
+    if (token.isEmpty() && !hasHttpApiKey())
         return;
 
     QString baseUrl = m_settings.requestServerUrl();
@@ -914,7 +917,7 @@ void AutoKJServerAPI::refreshVenues(bool blocking)
     if (!baseUrl.startsWith("http"))
         baseUrl = "https://" + baseUrl;
 
-    QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/venues"));
+    QNetworkRequest request(QUrl(baseUrl + "/api/v1/desktop/kj/venues"));
     setAuthHeader(request, token);
 
     QNetworkReply *reply = m_nam->get(request);
@@ -973,7 +976,7 @@ void AutoKJServerAPI::test()
     }
 
     // If API gave a concrete error, prefer that over a websocket fallback.
-    // Fallback to websocket only for likely legacy servers without /api/v1/kj/venues.
+    // Fallback to websocket only for likely legacy servers without /api/v1/desktop/kj/venues.
     if (!httpErr.isEmpty()) {
         const bool mayBeLegacyServer =
             httpErr.contains("not found", Qt::CaseInsensitive) ||
@@ -1076,16 +1079,25 @@ QString AutoKJServerAPI::ensureToken(QString *errorOut)
     return m_token;
 }
 
+bool AutoKJServerAPI::hasHttpApiKey() const
+{
+    return !m_settings.requestServerApiKey().trimmed().isEmpty();
+}
+
 void AutoKJServerAPI::setAuthHeader(QNetworkRequest &request, const QString &token)
 {
-    request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
+    const QString apiKey = m_settings.requestServerApiKey().trimmed();
+    if (!token.isEmpty())
+        request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
+    if (!apiKey.isEmpty())
+        request.setRawHeader("X-Api-Key", apiKey.toUtf8());
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 }
 
 bool AutoKJServerAPI::testHttpAuth(QString *errorOut)
 {
     QString token = ensureToken(errorOut);
-    if (token.isEmpty())
+    if (token.isEmpty() && !hasHttpApiKey())
         return false;
 
     QString baseUrl = m_settings.requestServerUrl();
@@ -1099,7 +1111,7 @@ bool AutoKJServerAPI::testHttpAuth(QString *errorOut)
         return false;
     }
 
-    QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/venues"));
+    QNetworkRequest request(QUrl(baseUrl + "/api/v1/desktop/kj/venues"));
     setAuthHeader(request, token);
     QNetworkReply *reply = m_nam->get(request);
     QEventLoop loop;
@@ -1110,14 +1122,14 @@ bool AutoKJServerAPI::testHttpAuth(QString *errorOut)
     const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     reply->deleteLater();
 
-    // If 401, token may be expired — re-login once and retry
-    if (status == 401) {
+    // If 401 and we were using a JWT, the token may be expired — re-login once and retry.
+    if (status == 401 && !token.isEmpty()) {
         m_token.clear();
         m_settings.setRequestServerToken({});
         token = QString();
         if (!login(errorOut))
             return false;
-        QNetworkRequest retryReq(QUrl(baseUrl + "/api/v1/kj/venues"));
+        QNetworkRequest retryReq(QUrl(baseUrl + "/api/v1/desktop/kj/venues"));
         setAuthHeader(retryReq, m_token);
         QNetworkReply *retryReply = m_nam->get(retryReq);
         QEventLoop loop2;
@@ -1147,7 +1159,7 @@ bool AutoKJServerAPI::testHttpAuth(QString *errorOut)
 
     const QJsonDocument doc = QJsonDocument::fromJson(body);
     if (!doc.isArray()) {
-        if (errorOut) *errorOut = "Invalid response from /api/v1/kj/venues.";
+        if (errorOut) *errorOut = "Invalid response from /api/v1/desktop/kj/venues.";
         return false;
     }
 
@@ -1236,7 +1248,7 @@ void AutoKJServerAPI::markCheckinAdded(const QString &checkinId)
 void AutoKJServerAPI::createVenue(const QString &name, const QString &address, const QString &pin)
 {
     const QString token = ensureToken();
-    if (token.isEmpty())
+    if (token.isEmpty() && !hasHttpApiKey())
         return;
 
     QString baseUrl = m_settings.requestServerUrl();
@@ -1245,7 +1257,7 @@ void AutoKJServerAPI::createVenue(const QString &name, const QString &address, c
     if (!baseUrl.startsWith("http"))
         baseUrl = "https://" + baseUrl;
 
-    QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/venues"));
+    QNetworkRequest request(QUrl(baseUrl + "/api/v1/desktop/kj/venues"));
     setAuthHeader(request, token);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
@@ -1269,7 +1281,7 @@ void AutoKJServerAPI::createVenue(const QString &name, const QString &address, c
 bool AutoKJServerAPI::startNewShow(QString *errorOut)
 {
     const QString token = ensureToken(errorOut);
-    if (token.isEmpty())
+    if (token.isEmpty() && !hasHttpApiKey())
         return false;
 
     const int venueId = m_settings.requestServerVenue();
@@ -1284,7 +1296,7 @@ bool AutoKJServerAPI::startNewShow(QString *errorOut)
     if (!baseUrl.startsWith("http"))
         baseUrl = "https://" + baseUrl;
 
-    QNetworkRequest request(QUrl(baseUrl + QString("/api/v1/kj/venues/%1/gigs/start").arg(venueId)));
+    QNetworkRequest request(QUrl(baseUrl + QString("/api/v1/desktop/kj/venues/%1/gigs/start").arg(venueId)));
     setAuthHeader(request, token);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
@@ -1316,7 +1328,7 @@ bool AutoKJServerAPI::startNewShow(QString *errorOut)
 bool AutoKJServerAPI::endActiveShow(QString *errorOut)
 {
     const QString token = ensureToken(errorOut);
-    if (token.isEmpty())
+    if (token.isEmpty() && !hasHttpApiKey())
         return false;
 
     const int venueId = m_settings.requestServerVenue();
@@ -1331,7 +1343,7 @@ bool AutoKJServerAPI::endActiveShow(QString *errorOut)
     if (!baseUrl.startsWith("http"))
         baseUrl = "https://" + baseUrl;
 
-    QNetworkRequest listReq(QUrl(baseUrl + QString("/api/v1/kj/venues/%1/gigs").arg(venueId)));
+    QNetworkRequest listReq(QUrl(baseUrl + QString("/api/v1/desktop/kj/venues/%1/gigs").arg(venueId)));
     setAuthHeader(listReq, token);
     QNetworkReply *listReply = m_nam->get(listReq);
     QEventLoop listLoop;
@@ -1371,7 +1383,7 @@ bool AutoKJServerAPI::endActiveShow(QString *errorOut)
         return true;
     }
 
-    QNetworkRequest endReq(QUrl(baseUrl + QString("/api/v1/kj/gigs/%1/end").arg(activeGigId)));
+    QNetworkRequest endReq(QUrl(baseUrl + QString("/api/v1/desktop/kj/gigs/%1/end").arg(activeGigId)));
     setAuthHeader(endReq, token);
     endReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     QNetworkReply *endReply = m_nam->post(endReq, QJsonDocument(QJsonObject{}).toJson(QJsonDocument::Compact));

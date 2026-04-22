@@ -148,6 +148,8 @@ public:
     void setRequestServerPassword(const QString &password);
     QString requestServerToken() const;
     void setRequestServerToken(const QString &token);
+    QString requestServerApiKey() const;
+    void setRequestServerApiKey(const QString &apiKey);
     bool requestServerIgnoreCertErrors();
     void setRequestServerIgnoreCertErrors(bool ignore);
     // AutoKJ Server settings (venue slug replaces numeric venue ID; token replaces API key)
@@ -246,6 +248,8 @@ public:
     void bmSetShowFilenames(bool show);
     bool bmShowMetadata();
     void bmSetShowMetadata(bool show);
+    QString youtubeApiKey() const;
+    void setYoutubeApiKey(const QString &apiKey);
     int bmVolume();
     void bmSetVolume(int bmVolume);
     int bmPlaylistIndex();

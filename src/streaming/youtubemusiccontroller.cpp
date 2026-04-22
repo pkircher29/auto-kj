@@ -13,6 +13,7 @@
 #include <QCryptographicHash>
 #include <QRandomGenerator>
 #include <QRegularExpression>
+#include "../settings.h"
 
 #if defined(Q_OS_WIN)
 #  define WIN32_LEAN_AND_MEAN
@@ -47,10 +48,11 @@ YouTubeMusicController::YouTubeMusicController(QObject *parent)
     , m_nam(new QNetworkAccessManager(this))
 {
     QSettings s;
+    Settings settings;
     m_accessToken  = s.value("streaming/youtube_access_token").toString();
     m_refreshToken = s.value("streaming/youtube_refresh_token").toString();
     m_clientId     = s.value("streaming/youtube_client_id").toString();
-    m_apiKey       = s.value("streaming/youtube_api_key").toString();
+    m_apiKey       = settings.youtubeApiKey();
 
     m_pollTimer = new QTimer(this);
     m_pollTimer->setInterval(kPollIntervalMs);
@@ -68,8 +70,9 @@ YouTubeMusicController::YouTubeMusicController(QObject *parent)
 
 void YouTubeMusicController::setApiKey(const QString &key)
 {
-    m_apiKey = key;
-    QSettings().setValue("streaming/youtube_api_key", key);
+    Settings settings;
+    m_apiKey = key.trimmed();
+    settings.setYoutubeApiKey(m_apiKey);
 }
 
 void YouTubeMusicController::setClientId(const QString &clientId)

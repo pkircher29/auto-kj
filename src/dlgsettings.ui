@@ -1081,7 +1081,24 @@ QPushButton:default {
                    </property>
                   </widget>
                  </item>
+                 <item row="4" column="0">
+                  <widget class="QLabel" name="labelApiKey">
+                   <property name="text">
+                    <string>API Key</string>
+                   </property>
+                  </widget>
+                 </item>
                  <item row="4" column="1">
+                  <widget class="QLineEdit" name="lineEditApiKey">
+                   <property name="toolTip">
+                    <string>API key for Pro desktop HTTP endpoints</string>
+                   </property>
+                   <property name="echoMode">
+                    <enum>QLineEdit::PasswordEchoOnEdit</enum>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="5" column="1">
                   <widget class="QPushButton" name="btnCreateAccount">
                    <property name="toolTip">
                     <string>Create a new Auto-KJ account</string>
@@ -1097,14 +1114,14 @@ QPushButton:default {
                    </property>
                   </widget>
                  </item>
-                 <item row="5" column="0">
+                 <item row="6" column="0">
                   <widget class="QLabel" name="label_30">
                    <property name="text">
                     <string>System ID</string>
                    </property>
                   </widget>
                  </item>
-                 <item row="5" column="1">
+                 <item row="6" column="1">
                   <layout class="QHBoxLayout" name="horizontalLayout_2">
                    <property name="rightMargin">
                     <number>20</number>
