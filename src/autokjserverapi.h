@@ -22,6 +22,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <functional>
 #include "autokjserverclient.h"
 #include "settings.h"
 
@@ -68,16 +69,16 @@ public:
     void refreshRequests() override { /* push-based; no polling needed */ }
 
     /** Fetch venues for the current API key from the server */
-    void refreshVenues(bool blocking = false) override;
+    void refreshVenues() override;
 
     /** Create a new venue via the API */
     void createVenue(const QString &name, const QString &address, const QString &pin) override;
 
     /** Start a new active show (gig) for the selected venue. */
-    bool startNewShow(QString *errorOut = nullptr) override;
+    void startNewShow() override;
 
     /** End the currently active show for the selected venue, if any. */
-    bool endActiveShow(QString *errorOut = nullptr) override;
+    void endActiveShow() override;
 
     /** No-op: testing stub */
     void triggerTestAdd() override { /* no equivalent in AutoKJ */ }
@@ -163,12 +164,17 @@ private:
     void handleEvent(const QString &event, const QJsonObject &data);
     void processNewRequest(const QJsonObject &reqData);
     void processPendingRequests(const QJsonArray &reqArray);
-    bool login(QString *errorOut = nullptr);
-    QString ensureToken(QString *errorOut = nullptr);
+    QString normalizedBaseUrl() const;
+    QString errorFromReply(QNetworkReply *reply, const QByteArray &body) const;
+    void loginAsync(const std::function<void(bool, const QString &)> &callback);
+    void ensureTokenAsync(const std::function<void(const QString &)> &onSuccess,
+                          const std::function<void(const QString &)> &onFailure = {});
     void setAuthHeader(QNetworkRequest &request, const QString &token);
     bool hasHttpApiKey() const;
-    bool testHttpAuth(QString *errorOut = nullptr);
-    bool tryLegacySongDbSync(QString *errorOut = nullptr);
+    void testHttpAuthAsync(const std::function<void(bool, const QString &, bool)> &callback);
+    void tryLegacySongDbSyncAsync(const std::function<void(bool, const QString &)> &callback);
+    void patchAcceptingState(bool enabled, const QString &token,
+                             const std::function<void(bool, const QString &, const QString &)> &callback);
 };
 
 #endif // AUTOKJSERVERAPI_H

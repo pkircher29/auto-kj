@@ -1230,12 +1230,17 @@ void MainWindow::setupConnections() {
             m_checkBoxAcceptingRequests->blockSignals(false);
         }
 
-        QString error;
-        if (!m_songbookApi.endActiveShow(&error)) {
-            QMessageBox::warning(this, "End Show Failed", error.isEmpty() ? "Could not end show." : error);
-        }
-        m_songbookApi.refreshVenues(true);
-        updateEndShowButtonState();
+        QMetaObject::Connection *endConn = new QMetaObject::Connection;
+        *endConn = connect(&m_songbookApi, &AutoKJServerClient::endActiveShowFinished, this,
+            [this, endConn](bool ok, const QString &error) {
+                disconnect(*endConn);
+                delete endConn;
+                if (!ok) {
+                    QMessageBox::warning(this, "End Show Failed", error.isEmpty() ? "Could not end show." : error);
+                }
+                updateEndShowButtonState();
+            });
+        m_songbookApi.endActiveShow();
     });
     m_venueTb->addWidget(m_btnEndShow);
     updateEndShowButtonState();

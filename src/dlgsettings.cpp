@@ -976,59 +976,81 @@ void DlgSettings::on_btnTestReqServer_clicked() {
 
 void DlgSettings::reqSvrTestError(QString error) {
     const QString lowerError = error.toLower();
-    bool venuesReceived = false;
-    bool hasVenues = true;
-    auto venuesConn = connect(&songbookApi, &AutoKJServerClient::venuesChanged, this,
-        [&](const OkjsVenues &venues) {
-            venuesReceived = true;
-            hasVenues = !venues.isEmpty();
+    const bool noActiveShowError = lowerError.contains("no active show found");
+
+    auto showFailure = [this, error]() {
+        QMessageBox msgBox;
+        msgBox.setWindowTitle("Request server test failed!");
+        msgBox.setText("Request server connection test was unsuccessful!");
+        msgBox.setInformativeText("Error msg:\n" + error);
+        msgBox.exec();
+    };
+
+    auto handleVenueState = [this, noActiveShowError, showFailure](bool venuesReceived, bool hasVenues) {
+        const bool shouldOpenVenueDialog =
+            (venuesReceived && !hasVenues) || (noActiveShowError && (!venuesReceived || !hasVenues));
+
+        if (shouldOpenVenueDialog) {
+            DlgAddVenue dlg(this);
+            dlg.setWindowTitle("Create Your First Venue");
+            if (dlg.exec() == QDialog::Accepted) {
+                songbookApi.createVenue(dlg.venueName(), dlg.venueAddress(), dlg.venuePin());
+                QMessageBox::information(this, "Venue Setup",
+                                         "Venue created. Run the connection test again.");
+            }
+            return;
+        }
+
+        if (noActiveShowError) {
+            const auto choice = QMessageBox::question(
+                this,
+                "No Active Show",
+                "Your API key is valid, but there is no active show.\n\nWould you like to start a new show now?",
+                QMessageBox::Yes | QMessageBox::No,
+                QMessageBox::Yes
+            );
+            if (choice == QMessageBox::Yes) {
+                QMetaObject::Connection *startConn = new QMetaObject::Connection;
+                *startConn = connect(&songbookApi, &AutoKJServerClient::startNewShowFinished, this,
+                    [this, startConn](bool ok, const QString &startErr) {
+                        disconnect(*startConn);
+                        delete startConn;
+                        if (ok) {
+                            QMessageBox::information(this, "Show Started", "New show started. Retesting connection now.");
+                            songbookApi.test();
+                        } else {
+                            QMessageBox::warning(this, "Unable to Start Show", "Could not start a new show.\n\n" + startErr);
+                        }
+                    });
+                songbookApi.startNewShow();
+            }
+            return;
+        }
+
+        showFailure();
+    };
+
+    QMetaObject::Connection *venuesConn = new QMetaObject::Connection;
+    QMetaObject::Connection *venuesFailConn = new QMetaObject::Connection;
+    *venuesConn = connect(&songbookApi, &AutoKJServerClient::venuesChanged, this,
+        [venuesConn, venuesFailConn, handleVenueState](const OkjsVenues &venues) {
+            disconnect(*venuesConn);
+            disconnect(*venuesFailConn);
+            delete venuesConn;
+            delete venuesFailConn;
+            handleVenueState(true, !venues.isEmpty());
+        });
+    *venuesFailConn = connect(&songbookApi, &AutoKJServerClient::venuesRefreshFailed, this,
+        [venuesConn, venuesFailConn, handleVenueState](const QString &) {
+            disconnect(*venuesConn);
+            disconnect(*venuesFailConn);
+            delete venuesConn;
+            delete venuesFailConn;
+            handleVenueState(false, false);
         });
 
-    songbookApi.refreshVenues(true);
-    disconnect(venuesConn);
-
-    const bool noActiveShowError = lowerError.contains("no active show found");
-    const bool shouldOpenVenueDialog =
-        (venuesReceived && !hasVenues) || (noActiveShowError && (!venuesReceived || !hasVenues));
-
-    if (shouldOpenVenueDialog) {
-        DlgAddVenue dlg(this);
-        dlg.setWindowTitle("Create Your First Venue");
-        if (dlg.exec() == QDialog::Accepted) {
-            songbookApi.createVenue(dlg.venueName(), dlg.venueAddress(), dlg.venuePin());
-            QMessageBox::information(this, "Venue Setup",
-                                     "Venue created. Run the connection test again.");
-        }
-        return;
-    }
-
-    if (noActiveShowError) {
-        const auto choice = QMessageBox::question(
-            this,
-            "No Active Show",
-            "Your API key is valid, but there is no active show.\n\nWould you like to start a new show now?",
-            QMessageBox::Yes | QMessageBox::No,
-            QMessageBox::Yes
-        );
-        if (choice == QMessageBox::Yes) {
-            QString startErr;
-            if (songbookApi.startNewShow(&startErr)) {
-                QMessageBox::information(this, "Show Started", "New show started. Retesting connection now.");
-                songbookApi.test();
-            } else {
-                QMessageBox::warning(this, "Unable to Start Show", "Could not start a new show.\n\n" + startErr);
-            }
-        }
-        return;
-    }
-
-    QMessageBox msgBox;
-    msgBox.setWindowTitle("Request server test failed!");
-    msgBox.setText("Request server connection test was unsuccessful!");
-    msgBox.setInformativeText("Error msg:\n" + error);
-    msgBox.exec();
+    songbookApi.refreshVenues();
 }
-
 void DlgSettings::reqSvrTestSslError(QString error) {
     QMessageBox msgBox;
     msgBox.setWindowTitle("Request server test failed!");
