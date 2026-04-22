@@ -19,6 +19,7 @@ public:
 
 private slots:
     void on_btnCreate_clicked();
+    void onRegistrationFinished();
 
 private:
     Ui::DlgRegister *ui;

@@ -1,3 +1,4 @@
+#include <QRegularExpression>
 /*
  * Copyright (c) 2013-2019 Thomas Isaac Lightburn
  *
@@ -1272,6 +1273,13 @@ void DlgSettings::on_btnSubmitChangePassword_clicked()
         QMessageBox::warning(this, "Error", "New password must be at least 8 characters long.");
         return;
     }
+
+    QRegularExpression complexRegex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{8,}$");
+    if (!complexRegex.match(newPassword).hasMatch()) {
+        QMessageBox::warning(this, "Error", "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
+        return;
+    }
+
 
     ui->btnSubmitChangePassword->setEnabled(false);
     ui->btnSubmitChangePassword->setText("Updating...");
