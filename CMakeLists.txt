@@ -41,7 +41,7 @@ if (AUTOKJ_USE_QTKEYCHAIN)
         CPMAddPackage(
                 NAME qtkeychain
                 GITHUB_REPOSITORY frankosterfeld/qtkeychain
-                GIT_TAG master
+                GIT_TAG main
                 OPTIONS
                     "BUILD_WITH_QT6 OFF"
                     "BUILD_TEST_APPLICATION OFF"
