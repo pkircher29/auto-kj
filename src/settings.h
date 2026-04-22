@@ -98,6 +98,8 @@ public:
     // REMOVED: setKaroakeDotNetUser, setKaraokeDotNetPass, karoakeDotNetUser, karoakeDotNetPass
     bool testingEnabled();
     bool hardwareAccelEnabled();
+    bool crashReportingEnabled();
+    void setCrashReportingEnabled(bool enabled);
     bool dbDoubleClickAddsSong();
     enum BgMode { BG_MODE_IMAGE = 0, BG_MODE_SLIDESHOW };
     enum PreviewSize { Small, Medium, Large };
@@ -363,6 +365,7 @@ signals:
     void djListChanged();
     void activeDjChanged(const QString &dj);
     void shortcutsChanged();
+    void crashReportingEnabledChanged(bool enabled);
 
 
 public slots:

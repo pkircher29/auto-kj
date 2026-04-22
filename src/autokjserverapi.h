@@ -24,6 +24,7 @@
 #include <QJsonDocument>
 #include "autokjserverclient.h"
 #include "settings.h"
+#include "securecredentialstore.h"
 
 class AutoKJServerAPI : public AutoKJServerClient
 {
@@ -157,6 +158,8 @@ private:
     // Chunked song sync state
     QList<QJsonDocument> m_songChunks;
     int m_syncChunkIndex{0};
+
+    SecureCredentialStore m_secureStore;
 
     void connectToServer();
     void disconnectFromServer(bool clearSessionState);

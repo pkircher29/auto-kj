@@ -1,0 +1,86 @@
+name: Setup Build Dependencies
+# Reusable workflow: installs Qt, GStreamer, OpenSSL, and MSVC for Windows builds.
+# Call with:
+#   uses: ./.github/workflows/setup-deps.yml
+#   with:
+#     qt_version: '5.15.2'     # optional, defaults to 5.15.2
+#     qt_arch: 'win64_msvc2019_64'   # optional
+
+on:
+  workflow_call:
+    inputs:
+      qt_version:
+        description: Qt version to install
+        type: string
+        default: '5.15.2'
+      qt_arch:
+        description: Qt architecture string for jurplel/install-qt-action
+        type: string
+        default: 'win64_msvc2019_64'
+    outputs:
+      qt_root:
+        description: Root path of the Qt installation
+        value: ${{ jobs.setup.outputs.qt_root }}
+      gst_path:
+        description: GStreamer install prefix
+        value: ${{ jobs.setup.outputs.gst_path }}
+      openssl_bin:
+        description: Directory containing OpenSSL 1.1 DLLs
+        value: ${{ jobs.setup.outputs.openssl_bin }}
+
+jobs:
+  setup:
+    runs-on: windows-2022
+    outputs:
+      qt_root:    ${{ steps.qt.outputs.qt_root }}
+      gst_path:   ${{ steps.gst.outputs.gst_path }}
+      openssl_bin: ${{ steps.ssl.outputs.openssl_bin }}
+
+    steps:
+      - name: Install Qt ${{ inputs.qt_version }}
+        id: qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ inputs.qt_version }}
+          host: windows
+          target: desktop
+          arch: ${{ inputs.qt_arch }}
+          modules: qtwebengine
+          extra: qtwebchannel
+          cache: true
+
+      - name: Install GStreamer via Chocolatey
+        id: gst
+        shell: powershell
+        run: |
+          choco install gstreamer     --yes --no-progress
+          choco install gstreamer-devel --yes --no-progress
+
+          $candidates = @(
+            'C:\gstreamer\1.0\msvc_x86_64',
+            'C:\Program Files\gstreamer\1.0\msvc_x86_64'
+          )
+          $gstPath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $gstPath) { throw "GStreamer install path not found" }
+          "gst_path=$gstPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "GStreamer at: $gstPath"
+
+      - name: Install OpenSSL 1.1
+        id: ssl
+        shell: powershell
+        run: |
+          $url = "https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe"
+          curl.exe -L --retry 3 -o openssl-installer.exe $url
+          Start-Process openssl-installer.exe `
+            -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+
+          $dll = Get-ChildItem "C:\Program Files\OpenSSL*\bin" -Filter "libssl-1_1-x64.dll" `
+                   -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $dll) { throw "OpenSSL DLLs not found after install" }
+          "openssl_bin=$($dll.DirectoryName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "OpenSSL at: $($dll.DirectoryName)"
+
+      - name: Setup MSVC toolchain
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64

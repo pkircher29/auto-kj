@@ -19,6 +19,9 @@
 */
 #include <algorithm>
 #include <QApplication>
+#include <QTranslator>
+#include <QLocale>
+#include <QLibraryInfo>
 #include "mainwindow.h"
 #include <QStyleFactory>
 #include <QSplashScreen>
@@ -152,6 +155,18 @@ int main(int argc, char *argv[]) {
     //QLoggingCategory::setFilterRules("*.debug=true");
     qInstallMessageHandler(myMessageOutput);
     QApplication a(argc, argv);
+
+    // Setup Internationalization (i18n)
+    QTranslator qtTranslator;
+    if (qtTranslator.load(QLocale::system(), "qtbase", "_", QLibraryInfo::location(QLibraryInfo::TranslationsPath))) {
+        a.installTranslator(&qtTranslator);
+    }
+
+    QTranslator appTranslator;
+    // Look for autokj_xx.qm in the translations directory or resources
+    if (appTranslator.load(QLocale::system(), "autokj", "_", ":/translations")) {
+        a.installTranslator(&appTranslator);
+    }
 
 #ifdef MAC_OVERRIDE_GST
     // This points GStreamer paths to the framework contained in the app bundle.  Not needed on brew installs.

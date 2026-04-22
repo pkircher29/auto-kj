@@ -500,6 +500,8 @@ set(SOURCE_FILES
         src/tagreader.cpp
         src/bmdbupdatethread.cpp
         src/settings.cpp
+        src/securecredentialstore.cpp
+        src/crashreporter.cpp
         src/bmdbdialog.cpp
         src/dlgcustompatterns.cpp
         src/audiorecorder.cpp
@@ -571,6 +573,9 @@ set(SOURCE_FILES
         src/tagreader.h
         src/bmdbupdatethread.h
         src/settings.h
+        src/securecredentialstore.h
+        src/performanceprofiler.h
+        src/crashreporter.h
         src/bmdbdialog.h
         src/dlgcustompatterns.h
         src/audiorecorder.h

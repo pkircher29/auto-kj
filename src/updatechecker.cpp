@@ -5,6 +5,8 @@
 #include <QJsonObject>
 #include <QNetworkReply>
 #include <QSysInfo>
+#include <QCryptographicHash>
+#include <QFile>
 
 
 QString UpdateChecker::getOS() const
@@ -141,4 +143,17 @@ void UpdateChecker::downloadInstaller()
         if (OS == "MacOS")
             url = "https://storage.googleapis.com/Auto-KJ-Auto-KJ-release/Auto-KJ-" + availVersion + "-unstable-osx-installer.dmg";
     }
+    // TODO: Verify signature after download completes
+}
+
+bool UpdateChecker::verifySignature(const QString &filePath, const QByteArray &expectedHash)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) return false;
+
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    if (hash.addData(&file)) {
+        return hash.result().toHex() == expectedHash.toLower();
+    }
+    return false;
 }

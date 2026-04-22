@@ -1,0 +1,216 @@
+name: CI — Multi-Platform Build
+
+on:
+  push:
+    branches: [master, main]
+    tags: ['v*']
+    paths-ignore: ['**.md', 'LICENSE', '.gitignore']
+  pull_request:
+    branches: [master, main]
+    paths-ignore: ['**.md', 'LICENSE', '.gitignore']
+  workflow_dispatch:
+
+# ── Matrix definition ──────────────────────────────────────────────────────────
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Windows (MSVC + Qt 5.15.2) ──────────────────────────────────────
+          - os: windows-2022
+            platform: windows
+            qt_arch: win64_msvc2019_64
+            artifact_name: Auto-KJ-Windows-x64
+
+          # ── Linux (GCC + Qt 5.15.2 from apt) ──────────────────────────────────
+          - os: ubuntu-22.04
+            platform: linux
+            qt_arch: gcc_64
+            artifact_name: Auto-KJ-Linux-x64
+
+          # ── macOS (AppleClang + Qt 5.15.2) ───────────────────────────────────
+          - os: macos-13
+            platform: macos
+            qt_arch: clang_64
+            artifact_name: Auto-KJ-macOS-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ── Qt ───────────────────────────────────────────────────────────────────
+      - name: Install Qt 5.15.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          host: ${{ matrix.platform == 'windows' && 'windows' || matrix.platform == 'linux' && 'linux' || 'mac' }}
+          target: desktop
+          arch: ${{ matrix.qt_arch }}
+          modules: qtwebengine
+          extra: qtwebchannel
+          cache: true
+
+      # ── Platform-specific dependencies ────────────────────────────────────────
+      - name: Install Linux dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libgstreamer-plugins-good1.0-dev \
+            libssl-dev cmake ninja-build pkg-config
+
+      - name: Install macOS dependencies
+        if: matrix.platform == 'macos'
+        run: |
+          brew update
+          brew install gstreamer gst-plugins-base gst-plugins-good openssl@1.1 cmake ninja
+
+      - name: Install Windows dependencies
+        if: matrix.platform == 'windows'
+        shell: powershell
+        run: |
+          choco install gstreamer --yes --no-progress
+          choco install gstreamer-devel --yes --no-progress
+
+          $url = "https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe"
+          curl.exe -L --retry 3 -o openssl-installer.exe $url
+          Start-Process openssl-installer.exe `
+            -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+
+          $dll = Get-ChildItem "C:\Program Files\OpenSSL*\bin" `
+                   -Filter "libssl-1_1-x64.dll" -Recurse -ErrorAction SilentlyContinue |
+                   Select-Object -First 1
+          if (-not $dll) { throw "OpenSSL DLLs not found" }
+          "OPENSSL_BIN=$($dll.DirectoryName)" >> $env:GITHUB_ENV
+
+      - name: Setup MSVC (Windows only)
+        if: matrix.platform == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      # ── Configure & Build ────────────────────────────────────────────────────
+      - name: Detect GStreamer path (Windows)
+        if: matrix.platform == 'windows'
+        id: gst_win
+        shell: powershell
+        run: |
+          $candidates = @(
+            'C:\gstreamer\1.0\msvc_x86_64',
+            'C:\Program Files\gstreamer\1.0\msvc_x86_64'
+          )
+          $p = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $p) { throw "GStreamer path not found" }
+          "path=$p" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Configure CMake (Windows)
+        if: matrix.platform == 'windows'
+        shell: powershell
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64 `
+            -DDEPLOY_DEPS=ON `
+            "-DQT_INSTALL_PREFIX=$env:Qt5_DIR\..\..\..\" `
+            "-DGST_BASE_PATH=${{ steps.gst_win.outputs.path }}"
+
+      - name: Configure CMake (Linux / macOS)
+        if: matrix.platform != 'windows'
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DQT_INSTALL_PREFIX="${Qt5_DIR}/../../../"
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      # ── Package ───────────────────────────────────────────────────────────────
+      - name: Package (Windows)
+        if: matrix.platform == 'windows'
+        shell: powershell
+        run: |
+          $rel = "build\Release"
+          & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --no-translations "$rel\auto-kj.exe"
+          Compress-Archive "$rel\*" -DestinationPath "${{ matrix.artifact_name }}.zip" -Force
+
+      - name: Package (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p dist
+          cp build/auto-kj dist/
+          tar -czf "${{ matrix.artifact_name }}.tar.gz" -C dist .
+
+      - name: Package (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p dist
+          cp -R build/auto-kj.app dist/ 2>/dev/null || cp build/auto-kj dist/
+          tar -czf "${{ matrix.artifact_name }}.tar.gz" -C dist .
+
+      # ── Checksums & optional signing ─────────────────────────────────────────
+      - name: Generate and sign SHA-256 checksums
+        shell: bash
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          for f in ${{ matrix.artifact_name }}.zip ${{ matrix.artifact_name }}.tar.gz; do
+            [ -f "$f" ] && sha256sum "$f" >> checksums.sha256 || true
+          done
+          if [ ! -f checksums.sha256 ]; then echo "No artifacts to checksum"; exit 0; fi
+          
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "Signing checksums..."
+            echo "$GPG_PRIVATE_KEY" | gpg --import --batch
+            echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 --clearsign --output checksums.sha256.asc checksums.sha256
+          fi
+          cat checksums.sha256
+
+      # Code-signing placeholder — set WINDOWS_CERT_PFX + WINDOWS_CERT_PASSWORD secrets
+      # to enable. Currently a no-op if secrets are absent.
+      - name: Sign Windows executable (optional)
+        if: matrix.platform == 'windows' && env.WINDOWS_CERT_PFX != ''
+        env:
+          WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        shell: powershell
+        run: |
+          $pfxPath = "$env:RUNNER_TEMP\cert.pfx"
+          [System.Convert]::FromBase64String($env:WINDOWS_CERT_PFX) | Set-Content $pfxPath -AsByteStream
+          $signtool = (Get-Command signtool.exe -ErrorAction SilentlyContinue)?.Source
+          if ($signtool) {
+            & $signtool sign /fd SHA256 /p "$env:WINDOWS_CERT_PASSWORD" `
+              /f $pfxPath /tr http://timestamp.digicert.com /td SHA256 `
+              "build\Release\auto-kj.exe"
+          }
+
+      # ── Upload artifacts ──────────────────────────────────────────────────────
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            ${{ matrix.artifact_name }}.zip
+            ${{ matrix.artifact_name }}.tar.gz
+            checksums.sha256
+            checksums.sha256.asc
+          if-no-files-found: warn
+
+      # ── GitHub Release (tags only) ────────────────────────────────────────────
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.artifact_name }}.zip
+            ${{ matrix.artifact_name }}.tar.gz
+            checksums.sha256
+            checksums.sha256.asc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

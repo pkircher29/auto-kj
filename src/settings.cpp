@@ -27,6 +27,7 @@
 #include <QCryptographicHash>
 #include <QDataStream>
 #include "simplecrypt.h"
+#include "securecredentialstore.h"
 #include <QStandardPaths>
 #include <QDir>
 #include <QDataStream>
@@ -234,6 +235,11 @@ bool Settings::hardwareAccelEnabled()
     hwAccelDefault = false;
 #endif
     return settings->value("hardwareAccelEnabled", hwAccelDefault).toBool();
+}
+
+bool Settings::crashReportingEnabled()
+{
+    return settings->value("crashReportingEnabled", false).toBool();
 }
 
 bool Settings::dbDoubleClickAddsSong()
@@ -655,6 +661,14 @@ void Settings::setHardwareAccelEnabled(const bool enabled)
     settings->setValue("hardwareAccelEnabled", enabled);
 }
 
+void Settings::setCrashReportingEnabled(bool enabled)
+{
+    if (crashReportingEnabled() == enabled)
+        return;
+    settings->setValue("crashReportingEnabled", enabled);
+    emit crashReportingEnabledChanged(enabled);
+}
+
 void Settings::setDbDoubleClickAddsSong(const bool enabled)
 {
     settings->setValue("dbDoubleClickAddsSong", enabled);
@@ -852,6 +866,14 @@ void Settings::setRequestServerEmail(const QString &email)
 
 QString Settings::requestServerPassword() const
 {
+    // Prefer the value from the secure keychain.
+    // On first run after this migration, fall back to the old plain QSettings
+    // value so users don't have to re-enter their password.
+    SecureCredentialStore store;
+    QString secure = store.load("AutoKJ/requestServerPassword");
+    if (!secure.isEmpty())
+        return secure;
+    // Legacy fallback — migrate on next setRequestServerPassword call
     return settings->value("requestServerPassword", "").toString();
 }
 
@@ -859,7 +881,11 @@ void Settings::setRequestServerPassword(const QString &password)
 {
     if (requestServerPassword() == password)
         return;
-    settings->setValue("requestServerPassword", password);
+    SecureCredentialStore store;
+    store.store("AutoKJ/requestServerPassword", password);
+    // Remove the legacy plaintext copy once migrated
+    settings->remove("requestServerPassword");
+    store.remove("AutoKJ/requestServerToken");
     settings->remove("requestServerToken");
     setPremiumAntiChaosAuthorized(false);
     emit requestServerCredentialsChanged();
@@ -867,6 +893,10 @@ void Settings::setRequestServerPassword(const QString &password)
 
 QString Settings::requestServerToken() const
 {
+    SecureCredentialStore store;
+    QString secure = store.load("AutoKJ/requestServerToken");
+    if (!secure.isEmpty())
+        return secure;
     return settings->value("requestServerToken", "").toString();
 }
 
@@ -874,7 +904,9 @@ void Settings::setRequestServerToken(const QString &token)
 {
     if (requestServerToken() == token)
         return;
-    settings->setValue("requestServerToken", token);
+    SecureCredentialStore store;
+    store.store("AutoKJ/requestServerToken", token);
+    settings->remove("requestServerToken");  // remove legacy plaintext
     emit requestServerCredentialsChanged();
 }
 

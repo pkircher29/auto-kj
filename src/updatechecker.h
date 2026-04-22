@@ -36,6 +36,7 @@ private slots:
     void onNetworkReply(QNetworkReply* reply);
     void aOnNetworkReply(QNetworkReply* reply);
     void downloadInstaller();
+    bool verifySignature(const QString &filePath, const QByteArray &expectedHash);
 };
 
 #endif // UPDATECHECKER_H
