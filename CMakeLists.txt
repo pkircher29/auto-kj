@@ -901,6 +901,42 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
                 COMMAND "${CMAKE_COMMAND}" -E copy_directory "${GST_BASE_PATH}/lib/gstreamer-1.0" "$<TARGET_FILE_DIR:auto-kj>/lib/gstreamer-1.0"
         )
     endif ()
+    endif ()
+
+    install(TARGETS auto-kj
+        RUNTIME DESTINATION .
+        BUNDLE DESTINATION .
+    )
+
+    if (DEFINED DEPLOY_DEPS)
+        # Install Qt plugins and DLLs (windeployqt should handle most, but we need them in the install tree)
+        install(CODE "
+            file(GLOB_RECURSE QT_DLLS \"${CMAKE_CURRENT_BINARY_DIR}/Release/*.dll\")
+            foreach(dll ${QT_DLLS})
+                file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}\" TYPE FILE FILES \"\${dll}\")
+            endforeach()
+        ")
+    endif ()
+endif ()
+
+# ── Packaging (CPack) ────────────────────────────────────────────────────────
+if (WIN32)
+    set(CPACK_GENERATOR "NSIS")
+    set(CPACK_PACKAGE_NAME "Auto-KJ")
+    set(CPACK_PACKAGE_VENDOR "Auto-KJ Team")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Automated Karaoke Hosting Software")
+    set(CPACK_PACKAGE_VERSION "${sem_ver}")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "Auto-KJ")
+    set(CPACK_NSIS_DISPLAY_NAME "Auto-KJ")
+    set(CPACK_NSIS_HELP_LINK "https://auto-kj.com")
+    set(CPACK_NSIS_URL_INFO_ABOUT "https://auto-kj.com")
+    set(CPACK_NSIS_CONTACT "support@auto-kj.com")
+    set(CPACK_NSIS_MODIFY_PATH ON)
+    
+    # Icon configuration
+    set(CPACK_NSIS_INSTALLED_ICON_NAME "auto-kj.exe")
+    
+    include(CPack)
 endif ()
 
 

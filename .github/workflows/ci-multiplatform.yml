@@ -137,6 +137,13 @@ jobs:
         run: |
           $rel = "build\Release"
           & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --no-translations "$rel\auto-kj.exe"
+          
+          # Generate NSIS Installer
+          cd build
+          cpack -C Release -G NSIS
+          cd ..
+          
+          Move-Item "build\Auto-KJ-*-win64.exe" -Destination "${{ matrix.artifact_name }}-Installer.exe" -ErrorAction SilentlyContinue
           Compress-Archive "$rel\*" -DestinationPath "${{ matrix.artifact_name }}.zip" -Force
 
       - name: Package (Linux)
@@ -160,7 +167,7 @@ jobs:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          for f in ${{ matrix.artifact_name }}.zip ${{ matrix.artifact_name }}.tar.gz; do
+          for f in ${{ matrix.artifact_name }}.zip ${{ matrix.artifact_name }}.tar.gz ${{ matrix.artifact_name }}-Installer.exe; do
             [ -f "$f" ] && sha256sum "$f" >> checksums.sha256 || true
           done
           if [ ! -f checksums.sha256 ]; then echo "No artifacts to checksum"; exit 0; fi
@@ -198,6 +205,7 @@ jobs:
           path: |
             ${{ matrix.artifact_name }}.zip
             ${{ matrix.artifact_name }}.tar.gz
+            ${{ matrix.artifact_name }}-Installer.exe
             checksums.sha256
             checksums.sha256.asc
           if-no-files-found: warn
@@ -210,6 +218,7 @@ jobs:
           files: |
             ${{ matrix.artifact_name }}.zip
             ${{ matrix.artifact_name }}.tar.gz
+            ${{ matrix.artifact_name }}-Installer.exe
             checksums.sha256
             checksums.sha256.asc
         env:
