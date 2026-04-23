@@ -38,6 +38,8 @@ jobs:
             gstreamer1.0-plugins-bad \
             gstreamer1.0-plugins-ugly \
             gstreamer1.0-libav \
+            libsecret-1-dev \
+            libsecret-tools \
             libtag1-dev \
             libssl-dev
 
@@ -54,6 +56,7 @@ jobs:
         run: |
           cmake -B build -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DDEPLOY_DEPS=ON \
             -DQT_INSTALL_PREFIX=$Qt5_DIR/../../..
 

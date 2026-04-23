@@ -45,6 +45,7 @@ jobs:
         run: |
           cmake -B build -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DDEPLOY_DEPS=ON \
             -DQT_INSTALL_PREFIX=$Qt5_DIR/../../.. \
             -DGSTREAMER_ROOT=$GSTREAMER_ROOT
