@@ -53,8 +53,7 @@ jobs:
           host: ${{ matrix.platform == 'windows' && 'windows' || matrix.platform == 'linux' && 'linux' || 'mac' }}
           target: desktop
           arch: ${{ matrix.qt_arch }}
-          modules: qtwebengine
-          extra: qtwebchannel
+          modules: qtwebengine qtwebchannel
           cache: true
 
       # ── Platform-specific dependencies ────────────────────────────────────────
