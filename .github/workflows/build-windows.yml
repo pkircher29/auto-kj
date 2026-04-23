@@ -41,6 +41,13 @@ jobs:
           arch: 'win64_msvc2019_64'
           modules: 'qtwebengine qtwebsockets qtmultimedia'
 
+      - name: Debug Qt Path
+        shell: powershell
+        run: |
+          echo "Qt6_DIR: $env:Qt6_DIR"
+          ls "$env:Qt6_DIR\bin\windeployqt.exe" -ErrorAction SilentlyContinue || echo "windeployqt.exe not found"
+          ls "$env:Qt6_DIR\..\..\bin\windeployqt.exe" -ErrorAction SilentlyContinue || echo "windeployqt.exe not found in parent dir"
+
       - name: Install GStreamer SDK
         shell: powershell
         run: |
@@ -103,7 +110,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
           Copy-Item "$buildDir\auto-kj.exe" -Destination $releaseDir -Force
 
-          & "$env:Qt6_Dir\bin\windeployqt.exe" --release --no-translations --dir "$releaseDir" "$releaseDir\auto-kj.exe"
+          & "$env:Qt6_DIR\bin\windeployqt.exe" --release --no-translations --dir "$releaseDir" "$releaseDir\auto-kj.exe"
 
           $requiredQtPaths = @(
             "$releaseDir\Qt6Core.dll",
