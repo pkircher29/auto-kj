@@ -26,6 +26,7 @@
 #include <QList>
 #include <QNetworkAccessManager>
 #include <QPushButton>
+#include <QStringList>
 #include "settings.h"
 #include "mediabackend.h"
 #include "autokjserverclient.h"
@@ -48,6 +49,8 @@ private:
     std::shared_ptr<spdlog::logger> m_logger;
     Ui::DlgSettings *ui;
     QStringList getMonitors();
+    QStringList currentSongLibraryDirs() const;
+    void reloadSongLibraryDirs();
     MediaBackend &kAudioBackend;
     MediaBackend &bmAudioBackend;
     QNetworkAccessManager *networkManager;

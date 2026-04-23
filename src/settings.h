@@ -150,6 +150,8 @@ public:
     void setRequestServerPassword(const QString &password);
     QString requestServerToken() const;
     void setRequestServerToken(const QString &token);
+    QString requestServerApiKey() const;
+    void setRequestServerApiKey(const QString &apiKey);
     bool requestServerIgnoreCertErrors();
     void setRequestServerIgnoreCertErrors(bool ignore);
     // AutoKJ Server settings (venue slug replaces numeric venue ID; token replaces API key)
@@ -163,6 +165,8 @@ public:
     // DJ Profiles
     QStringList djList() const;
     void setDjList(const QStringList &djs);
+    QStringList mediaDirs() const;
+    void setMediaDirs(const QStringList &dirs);
     QString activeDj() const;
     void setActiveDj(const QString &dj);
     // Per-singer queue limit (enforced locally in addition to server-side)
@@ -248,6 +252,8 @@ public:
     void bmSetShowFilenames(bool show);
     bool bmShowMetadata();
     void bmSetShowMetadata(bool show);
+    QString youtubeApiKey() const;
+    void setYoutubeApiKey(const QString &apiKey);
     int bmVolume();
     void bmSetVolume(int bmVolume);
     int bmPlaylistIndex();

@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QUrl>
 
 DlgRegister::DlgRegister(Settings &settings, QWidget *parent)
@@ -18,7 +19,7 @@ DlgRegister::DlgRegister(Settings &settings, QWidget *parent)
 DlgRegister::~DlgRegister()
 {
     if (m_pendingReply)
-        m_pendingReply->deleteLater();
+        m_pendingReply->abort();
     delete ui;
 }
 
@@ -30,6 +31,47 @@ QString DlgRegister::registeredEmail() const
 QString DlgRegister::registeredPassword() const
 {
     return m_password;
+}
+bool DlgRegister::passwordMeetsRequirements(const QString &password) const
+{
+    static const QRegularExpression re(QStringLiteral("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$"));
+    return re.match(password).hasMatch();
+}
+
+void DlgRegister::updateInlineValidation()
+{
+    if (m_pendingReply)
+        return;
+
+    const QString password = ui->lineEditPassword->text();
+    const QString confirm = ui->lineEditConfirm->text();
+
+    if (password.isEmpty() && confirm.isEmpty()) {
+        ui->labelError->hide();
+        return;
+    }
+
+    if (!passwordMeetsRequirements(password)) {
+        showError("Password must be at least 8 characters and include uppercase, lowercase, and a number.");
+        return;
+    }
+
+    if (!confirm.isEmpty() && password != confirm) {
+        showError("Passwords do not match.");
+        return;
+    }
+
+    ui->labelError->hide();
+}
+
+void DlgRegister::on_lineEditPassword_textChanged(const QString &)
+{
+    updateInlineValidation();
+}
+
+void DlgRegister::on_lineEditConfirm_textChanged(const QString &)
+{
+    updateInlineValidation();
 }
 
 void DlgRegister::on_btnCreate_clicked()
@@ -43,14 +85,16 @@ void DlgRegister::on_btnCreate_clicked()
         showError("All fields are required.");
         return;
     }
-    if (password.length() < 8) {
-        showError("Password must be at least 8 characters.");
+    if (!passwordMeetsRequirements(password)) {
+        showError("Password must be at least 8 characters and include uppercase, lowercase, and a number.");
         return;
     }
     if (password != confirm) {
         showError("Passwords do not match.");
         return;
     }
+    if (m_pendingReply)
+        return;
 
     if (m_pendingReply)
         return;
@@ -75,12 +119,11 @@ void DlgRegister::on_btnCreate_clicked()
 
     m_email = email;
     m_password = password;
-
     m_pendingReply = m_nam.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
-    connect(m_pendingReply, &QNetworkReply::finished, this, &DlgRegister::onRegistrationFinished);
+    connect(m_pendingReply, &QNetworkReply::finished, this, &DlgRegister::onRegisterFinished);
 }
 
-void DlgRegister::onRegistrationFinished()
+void DlgRegister::onRegisterFinished()
 {
     if (!m_pendingReply)
         return;
@@ -95,7 +138,8 @@ void DlgRegister::onRegistrationFinished()
 
     const QJsonDocument doc = QJsonDocument::fromJson(responseBody);
 
-    if (status == 201 || (status == 200 && doc.isObject() && doc.object().contains("access_token"))) {
+    // The FastAPI /auth/register contract returns 201 Created on success.
+    if (status == 201) {
         accept();
         return;
     }
@@ -122,6 +166,7 @@ void DlgRegister::setWorking(bool working)
 {
     ui->btnCreate->setEnabled(!working);
     ui->btnCreate->setText(working ? "Creating…" : "Create Account");
+    ui->btnCancel->setEnabled(!working);
     ui->lineEditName->setEnabled(!working);
     ui->lineEditEmail->setEnabled(!working);
     ui->lineEditPassword->setEnabled(!working);

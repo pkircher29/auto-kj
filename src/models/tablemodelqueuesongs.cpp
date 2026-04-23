@@ -135,6 +135,49 @@ bool TableModelQueueSongs::setData(const QModelIndex &index, const QVariant &val
     return true;
 }
 
+void TableModelQueueSongs::setCosingerId(int songId, int cosingerIndex, int singerId, const QString &singerName) {
+    QString column;
+    switch (cosingerIndex) {
+        case 2: column = "cosinger2_id"; break;
+        case 3: column = "cosinger3_id"; break;
+        case 4: column = "cosinger4_id"; break;
+        default: return;
+    }
+    
+    QSqlQuery query;
+    query.prepare("UPDATE queuesongs SET " + column + " = :sid WHERE qsongid = :id");
+    query.bindValue(":sid", singerId);
+    query.bindValue(":id", songId);
+    if (!query.exec()) {
+        m_logger->error("{} Failed to link co-singer ID: {}", m_loggingPrefix, query.lastError().text());
+        return;
+    }
+    
+    // Update in-memory model
+    auto it = std::find_if(m_songs.begin(), m_songs.end(), [songId](const okj::QueueSong &s) {
+        return s.id == songId;
+    });
+    if (it != m_songs.end()) {
+        switch (cosingerIndex) {
+            case 2:
+                it->cosinger2Id = singerId;
+                it->cosinger2 = singerName;
+                break;
+            case 3:
+                it->cosinger3Id = singerId;
+                it->cosinger3 = singerName;
+                break;
+            case 4:
+                it->cosinger4Id = singerId;
+                it->cosinger4 = singerName;
+                break;
+        }
+        emit dataChanged(createIndex(std::distance(m_songs.begin(), it), COL_SINGER1 + cosingerIndex - 1),
+                         createIndex(std::distance(m_songs.begin(), it), COL_SINGER1 + cosingerIndex - 1));
+    }
+    emit queueModified(m_curSingerId);
+}
+
 QVariant TableModelQueueSongs::getColumnTextAlignmentRoleData(int column) {
     switch (column) {
         case COL_KEY:
@@ -197,7 +240,9 @@ void TableModelQueueSongs::loadSinger(const int singerId) {
     query.prepare("SELECT queuesongs.qsongid, queuesongs.singer, queuesongs.song, queuesongs.played, "
                   "queuesongs.keychg, queuesongs.position, rotationsingers.name, dbsongs.artist, "
                   "dbsongs.title, dbsongs.discid, dbsongs.duration, dbsongs.path, "
-                  "queuesongs.cosinger2, queuesongs.cosinger3, queuesongs.cosinger4 FROM queuesongs "
+                  "queuesongs.cosinger2, queuesongs.cosinger2_id, "
+                  "queuesongs.cosinger3, queuesongs.cosinger3_id, "
+                  "queuesongs.cosinger4, queuesongs.cosinger4_id FROM queuesongs "
                   "INNER JOIN rotationsingers ON rotationsingers.singerid = queuesongs.singer "
                   "INNER JOIN dbsongs ON dbsongs.songid = queuesongs.song WHERE queuesongs.singer = :singerId "
                   "ORDER BY queuesongs.position");
@@ -222,8 +267,11 @@ void TableModelQueueSongs::loadSinger(const int singerId) {
                 query.value(11).toString(),
                 query.value(6).toString(), // singerName
                 query.value(12).toString(), // cosinger2
-                query.value(13).toString(), // cosinger3
-                query.value(14).toString()  // cosinger4
+                query.value(13).toInt(),    // cosinger2_id
+                query.value(14).toString(), // cosinger3
+                query.value(15).toInt(),    // cosinger3_id
+                query.value(16).toString(), // cosinger4
+                query.value(17).toInt()     // cosinger4_id
         });
     }
     emit layoutChanged();
@@ -332,8 +380,11 @@ int TableModelQueueSongs::add(const int songId, const QStringList &cosingers) {
             ksong.path,
             m_settings.kjName(), // Just a placeholder or empty? Actually singerName should be fetched
             "",
+            -1,
             "",
-            ""
+            -1,
+            "",
+            -1
     });
     // Fix singerName after insertion if possible, or just reload singer
     loadSinger(m_curSingerId);

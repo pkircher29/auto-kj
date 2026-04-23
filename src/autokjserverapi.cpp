@@ -9,6 +9,7 @@
 #include <QTime>
 #include <QApplication>
 #include <QMessageBox>
+#include <memory>
 
 AutoKJServerAPI::AutoKJServerAPI(QObject *parent) : AutoKJServerClient(parent)
 {
@@ -39,19 +40,20 @@ AutoKJServerAPI::AutoKJServerAPI(QObject *parent) : AutoKJServerClient(parent)
         if (!m_updateInProgress)
             return;
         m_songSyncTimer->stop();
-        QString legacyError;
-        if (tryLegacySongDbSync(&legacyError)) {
-            m_songSyncTimeoutTimer->stop();
+        tryLegacySongDbSyncAsync([this](bool ok, const QString &legacyError) {
+            if (ok) {
+                m_songSyncTimeoutTimer->stop();
+                m_updateInProgress = false;
+                emit remoteSongDbUpdateDone();
+                return;
+            }
             m_updateInProgress = false;
-            emit remoteSongDbUpdateDone();
-            return;
-        }
-        m_updateInProgress = false;
-        emit remoteSongDbUpdateFailed(
-            legacyError.isEmpty()
-                ? "Remote DB sync timed out waiting for server response."
-                : "Remote DB sync timed out and legacy fallback failed: " + legacyError
-        );
+            emit remoteSongDbUpdateFailed(
+                legacyError.isEmpty()
+                    ? "Remote DB sync timed out waiting for server response."
+                    : "Remote DB sync timed out and legacy fallback failed: " + legacyError
+            );
+        });
     });
     connect(m_socket, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error),
             this, &AutoKJServerAPI::onSocketError);
@@ -160,16 +162,18 @@ void AutoKJServerAPI::reconfigureFromSettings(bool force)
     const QString email = m_settings.requestServerEmail().trimmed();
     const QString password = m_settings.requestServerPassword();
     const QString token = m_settings.requestServerToken().trimmed();
+    const QString apiKey = m_settings.requestServerApiKey().trimmed();
     const int venueId = m_settings.requestServerVenue();
 
     if (!force && enabled == m_reconnectEnabled && serverUrl == m_lastServerUrl &&
         email == m_lastEmail && password == m_lastPassword && token == m_lastToken &&
-        venueId == m_lastVenueId) {
+        apiKey == m_lastApiKey && venueId == m_lastVenueId) {
         return;
     }
 
     const bool endpointChanged = force || serverUrl != m_lastServerUrl ||
-        email != m_lastEmail || password != m_lastPassword || token != m_lastToken;
+        email != m_lastEmail || password != m_lastPassword || token != m_lastToken ||
+        apiKey != m_lastApiKey;
     const bool venueChanged = force || venueId != m_lastVenueId;
 
     m_reconnectEnabled = enabled;
@@ -177,6 +181,7 @@ void AutoKJServerAPI::reconfigureFromSettings(bool force)
     m_lastEmail = email;
     m_lastPassword = password;
     m_lastToken = token;
+    m_lastApiKey = apiKey;
     m_lastVenueId = venueId;
 
     if (!enabled) {
@@ -494,68 +499,18 @@ void AutoKJServerAPI::setAccepting(bool enabled, bool offerEndShowPrompt)
     const bool previous = m_accepting;
     m_accepting = enabled;
 
-    const QString token = ensureToken();
     const int venueId = m_settings.requestServerVenue();
-    if (token.isEmpty() || venueId <= 0) {
-        qWarning("[AutoKJ] Cannot update accepting state: missing token or venue.");
+    if (venueId <= 0) {
+        qWarning("[AutoKJ] Cannot update accepting state: missing venue.");
+        m_accepting = previous;
+        emit acceptingSetFinished(false, enabled, "No venue selected.");
         return;
     }
 
-    QString baseUrl = m_settings.requestServerUrl();
-    if (baseUrl.endsWith("/ws/kj"))
-        baseUrl.chop(6);
-    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
-        baseUrl = "https://" + baseUrl;
-
-    QNetworkRequest request(QUrl(baseUrl + QString("/api/v1/kj/venues/%1").arg(venueId)));
-    setAuthHeader(request, token);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QJsonObject payload;
-    payload["accepting"] = enabled;
-    auto sendAcceptingPatch = [this, &request, &payload](QString *responseBody, QString *errorString) -> bool {
-        QNetworkReply *reply = m_nam->sendCustomRequest(
-            request,
-            "PATCH",
-            QJsonDocument(payload).toJson(QJsonDocument::Compact)
-        );
-        QEventLoop loop;
-        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-        loop.exec();
-
-        const QString body = QString::fromUtf8(reply->readAll());
-        if (responseBody)
-            *responseBody = body;
-        if (errorString)
-            *errorString = reply->errorString();
-        const bool ok = reply->error() == QNetworkReply::NoError;
-        reply->deleteLater();
-        return ok;
-    };
-
-    QString errBody;
-    QString errString;
-    bool ok = sendAcceptingPatch(&errBody, &errString);
-
-    // Auto-start path: when enabling requests on a venue with no active show,
-    // start one automatically and retry once.
-    if (!ok && enabled && errBody.contains("No active show found", Qt::CaseInsensitive)) {
-        QString startErr;
-        if (startNewShow(&startErr)) {
-            ok = sendAcceptingPatch(&errBody, &errString);
-        } else {
-            errBody = startErr;
-        }
-    }
-
-    if (!ok) {
-        qWarning("[AutoKJ] Failed to set accepting=%d: %s %s",
-                 enabled ? 1 : 0,
-                 qPrintable(errString),
-                 qPrintable(errBody));
+    auto failAccepting = [this, previous, enabled](const QString &details) {
+        qWarning("[AutoKJ] Failed to set accepting=%d: %s", enabled ? 1 : 0, qPrintable(details));
         m_accepting = previous;
-
-        if (enabled && errBody.contains("Concurrent show limit reached", Qt::CaseInsensitive)) {
+        if (enabled && details.contains("Concurrent show limit reached", Qt::CaseInsensitive)) {
             QMessageBox msgBox;
             msgBox.setWindowTitle("Upgrade Required");
             msgBox.setIcon(QMessageBox::Information);
@@ -566,37 +521,87 @@ void AutoKJServerAPI::setAccepting(bool enabled, bool offerEndShowPrompt)
             );
             msgBox.exec();
         }
-    }
+        emit acceptingSetFinished(false, enabled, details);
+    };
 
-    if (ok && !enabled && offerEndShowPrompt) {
-        QMessageBox::StandardButton btn = QMessageBox::question(
-            nullptr,
-            "End Show?",
-            "Requests are now turned off for this venue.\n\nDo you want to end the active show as well?",
-            QMessageBox::Yes | QMessageBox::No
-        );
-        if (btn == QMessageBox::Yes) {
-            QString endErr;
-            if (!endActiveShow(&endErr)) {
-                QMessageBox::warning(
-                    nullptr,
-                    "End Show Failed",
-                    endErr.isEmpty() ? "Could not end the active show." : endErr
-                );
+    ensureTokenAsync(
+        [this, enabled, offerEndShowPrompt, failAccepting](const QString &token) {
+            if (token.isEmpty() && !hasHttpApiKey()) {
+                failAccepting("Missing authentication.");
+                return;
             }
+
+            auto completeSuccess = [this, enabled, offerEndShowPrompt]() {
+                refreshVenues();
+                emit acceptingSetFinished(true, enabled, {});
+                if (!enabled && offerEndShowPrompt) {
+                    const auto btn = QMessageBox::question(
+                        nullptr,
+                        "End Show?",
+                        "Requests are now turned off for this venue.\n\nDo you want to end the active show as well?",
+                        QMessageBox::Yes | QMessageBox::No
+                    );
+                    if (btn == QMessageBox::Yes) {
+                        QMetaObject::Connection *endConn = new QMetaObject::Connection;
+                        *endConn = connect(this, &AutoKJServerClient::endActiveShowFinished, this,
+                            [endConn](bool ok, const QString &endErr) {
+                                disconnect(*endConn);
+                                delete endConn;
+                                if (!ok) {
+                                    QMessageBox::warning(nullptr,
+                                                         "End Show Failed",
+                                                         endErr.isEmpty() ? "Could not end the active show." : endErr);
+                                }
+                            });
+                        endActiveShow();
+                    }
+                }
+            };
+
+            patchAcceptingState(enabled, token,
+                [this, enabled, token, completeSuccess, failAccepting](bool ok, const QString &details, const QString &responseBody) {
+                    if (ok) {
+                        QJsonObject data;
+                        data["accepting"] = m_accepting;
+                        sendEvent("kj:accepting", data);
+                        completeSuccess();
+                        return;
+                    }
+
+                    if (enabled && responseBody.contains("No active show found", Qt::CaseInsensitive)) {
+                        QMetaObject::Connection *startConn = new QMetaObject::Connection;
+                        *startConn = connect(this, &AutoKJServerClient::startNewShowFinished, this,
+                            [this, startConn, enabled, token, completeSuccess, failAccepting](bool startOk, const QString &startErr) {
+                                disconnect(*startConn);
+                                delete startConn;
+                                if (!startOk) {
+                                    failAccepting(startErr);
+                                    return;
+                                }
+                                patchAcceptingState(enabled, token,
+                                    [this, completeSuccess, failAccepting](bool retryOk, const QString &retryDetails, const QString &) {
+                                        if (retryOk) {
+                                            QJsonObject data;
+                                            data["accepting"] = m_accepting;
+                                            sendEvent("kj:accepting", data);
+                                            completeSuccess();
+                                        } else {
+                                            failAccepting(retryDetails);
+                                        }
+                                    });
+                            });
+                        startNewShow();
+                        return;
+                    }
+
+                    failAccepting(details);
+                });
+        },
+        [failAccepting](const QString &error) {
+            failAccepting(error);
         }
-    }
-
-    if (ok) {
-        refreshVenues(true);
-    }
-
-    // Keep websocket compatibility path for legacy server behavior.
-    QJsonObject data;
-    data["accepting"] = m_accepting;
-    sendEvent("kj:accepting", data);
+    );
 }
-
 bool AutoKJServerAPI::getAccepting() const
 {
     return m_accepting;
@@ -704,18 +709,18 @@ void AutoKJServerAPI::updateSongDb()
     emit remoteSongDbUpdateNumDocs(m_songChunks.size());
 
     if (!m_authenticated) {
-        QString legacyError;
-        if (tryLegacySongDbSync(&legacyError)) {
+        tryLegacySongDbSyncAsync([this](bool ok, const QString &legacyError) {
             m_updateInProgress = false;
-            emit remoteSongDbUpdateDone();
-        } else {
-            m_updateInProgress = false;
-            emit remoteSongDbUpdateFailed(
-                legacyError.isEmpty()
-                    ? "Not connected to request server, and legacy song sync failed."
-                    : "Not connected to request server. Legacy song sync failed: " + legacyError
-            );
-        }
+            if (ok) {
+                emit remoteSongDbUpdateDone();
+            } else {
+                emit remoteSongDbUpdateFailed(
+                    legacyError.isEmpty()
+                        ? "Not connected to request server, and legacy song sync failed."
+                        : "Not connected to request server. Legacy song sync failed: " + legacyError
+                );
+            }
+        });
         return;
     }
 
@@ -757,187 +762,173 @@ void AutoKJServerAPI::dbUpdateCanceled()
     m_updateInProgress = false;
 }
 
-bool AutoKJServerAPI::tryLegacySongDbSync(QString *errorOut)
+void AutoKJServerAPI::tryLegacySongDbSyncAsync(const std::function<void(bool, const QString &)> &callback)
 {
-    const QString token = ensureToken(errorOut);
-    if (token.isEmpty())
-        return false;
-
-    QString baseUrl = m_settings.requestServerUrl();
-    if (baseUrl.endsWith("/ws/kj"))
-        baseUrl.chop(6);
-    if (baseUrl.startsWith("wss://"))
-        baseUrl.replace(0, 6, "https://");
-    else if (baseUrl.startsWith("ws://"))
-        baseUrl.replace(0, 5, "https://");
-    if (!baseUrl.startsWith("http"))
-        baseUrl = "https://" + baseUrl;
-
-    const int systemId = m_settings.systemId();
-    bool modernEndpointMissing = false;
-
-    auto parseErrorFromReply = [&](QNetworkReply *reply, const QByteArray &body) -> QString {
-        QString details = reply->errorString();
-        const QJsonDocument doc = QJsonDocument::fromJson(body);
-        if (doc.isObject()) {
-            const auto obj = doc.object();
-            const QString detail = obj.value("detail").toString();
-            if (!detail.isEmpty())
-                details = detail;
-            const QString errorString = obj.value("errorString").toString();
-            if (!errorString.isEmpty())
-                details = errorString;
-        }
-        return details;
-    };
-
-    auto postModern = [&](const QJsonObject &obj) -> bool {
-        QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/songs/sync"));
-        setAuthHeader(request, token);
-        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-        QNetworkReply *reply = m_nam->post(request, QJsonDocument(obj).toJson(QJsonDocument::Compact));
-        QEventLoop loop;
-        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-        loop.exec();
-
-        const QByteArray body = reply->readAll();
-        const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        if (reply->error() != QNetworkReply::NoError) {
-            if (statusCode == 404) {
-                modernEndpointMissing = true;
-                reply->deleteLater();
-                return false;
+    ensureTokenAsync(
+        [this, callback](const QString &token) {
+            if (token.isEmpty() && !hasHttpApiKey()) {
+                callback(false, "Missing authentication.");
+                return;
             }
-            if (errorOut) *errorOut = parseErrorFromReply(reply, body);
-            reply->deleteLater();
-            return false;
-        }
 
-        reply->deleteLater();
-        return true;
-    };
+            const QString baseUrl = normalizedBaseUrl();
+            const int systemId = m_settings.systemId();
 
-    auto postLegacy = [&](const QJsonObject &obj, QJsonObject *outObj) -> bool {
-        QNetworkRequest request(QUrl(baseUrl + "/api"));
-        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-        QNetworkReply *reply = m_nam->post(request, QJsonDocument(obj).toJson(QJsonDocument::Compact));
-        QEventLoop loop;
-        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-        loop.exec();
+            auto sendLegacyClear = std::make_shared<std::function<void()>>();
+            auto sendLegacyChunk = std::make_shared<std::function<void(int)>>();
+            auto sendModernClear = std::make_shared<std::function<void()>>();
+            auto sendModernChunk = std::make_shared<std::function<void(int)>>();
 
-        const QByteArray body = reply->readAll();
-        if (reply->error() != QNetworkReply::NoError) {
-            if (errorOut) *errorOut = parseErrorFromReply(reply, body);
-            reply->deleteLater();
-            return false;
-        }
+            *sendLegacyChunk = [this, callback, baseUrl, systemId, sendLegacyChunk](int index) {
+                if (m_cancelUpdate) {
+                    callback(false, "Sync canceled.");
+                    return;
+                }
+                if (index >= m_songChunks.size()) {
+                    callback(true, {});
+                    return;
+                }
 
-        const QJsonDocument doc = QJsonDocument::fromJson(body);
-        reply->deleteLater();
-        if (!doc.isObject()) {
-            if (errorOut) *errorOut = "Invalid response from legacy /api endpoint.";
-            return false;
-        }
-        if (outObj) *outObj = doc.object();
-        if (doc.object().value("error").toBool(false)) {
-            if (errorOut) *errorOut = doc.object().value("errorString").toString("Legacy API returned an error.");
-            return false;
-        }
-        return true;
-    };
-
-    // Prefer modern FastAPI endpoint first.
-    if (postModern(QJsonObject{{"mode", "clear"}})) {
-        for (int i = 0; i < m_songChunks.size(); ++i) {
-            if (m_cancelUpdate) {
-                if (errorOut) *errorOut = "Sync canceled.";
-                return false;
-            }
-            QJsonObject req{
-                {"mode", "add"},
-                {"songs", m_songChunks.at(i).object().value("songs").toArray()},
+                QJsonObject req{{"method", "songbookUpdate"}, {"systemID", systemId},
+                                {"songbook", m_songChunks.at(index).object().value("songs").toArray()},
+                                {"append", true}};
+                QNetworkRequest request(QUrl(baseUrl + "/api"));
+                request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+                QNetworkReply *reply = m_nam->post(request, QJsonDocument(req).toJson(QJsonDocument::Compact));
+                connect(reply, &QNetworkReply::finished, this, [this, reply, callback, sendLegacyChunk, index]() {
+                    const QByteArray body = reply->readAll();
+                    const QJsonDocument doc = QJsonDocument::fromJson(body);
+                    const QString details = errorFromReply(reply, body);
+                    const bool ok = reply->error() == QNetworkReply::NoError && doc.isObject() && !doc.object().value("error").toBool(false);
+                    reply->deleteLater();
+                    if (!ok) {
+                        callback(false, details.isEmpty() ? "Legacy API returned an error." : details);
+                        return;
+                    }
+                    emit remoteSongDbUpdateProgress(index + 1);
+                    (*sendLegacyChunk)(index + 1);
+                });
             };
-            if (!postModern(req))
-                return false;
-            emit remoteSongDbUpdateProgress(i + 1);
+
+            *sendLegacyClear = [this, callback, baseUrl, systemId, sendLegacyChunk]() {
+                QJsonObject req{{"method", "songbookUpdate"}, {"systemID", systemId}, {"songbook", QJsonArray()}, {"append", false}};
+                QNetworkRequest request(QUrl(baseUrl + "/api"));
+                request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+                QNetworkReply *reply = m_nam->post(request, QJsonDocument(req).toJson(QJsonDocument::Compact));
+                connect(reply, &QNetworkReply::finished, this, [this, reply, callback, sendLegacyChunk]() {
+                    const QByteArray body = reply->readAll();
+                    const QJsonDocument doc = QJsonDocument::fromJson(body);
+                    const QString details = errorFromReply(reply, body);
+                    const bool ok = reply->error() == QNetworkReply::NoError && doc.isObject() && !doc.object().value("error").toBool(false);
+                    reply->deleteLater();
+                    if (!ok) {
+                        callback(false, details.isEmpty() ? "Legacy API returned an error." : details);
+                        return;
+                    }
+                    (*sendLegacyChunk)(0);
+                });
+            };
+
+            *sendModernChunk = [this, callback, baseUrl, token, sendLegacyClear, sendModernChunk](int index) {
+                if (m_cancelUpdate) {
+                    callback(false, "Sync canceled.");
+                    return;
+                }
+                if (index >= m_songChunks.size()) {
+                    callback(true, {});
+                    return;
+                }
+
+                QJsonObject req{{"mode", "add"}, {"songs", m_songChunks.at(index).object().value("songs").toArray()}};
+                QNetworkRequest request(QUrl(baseUrl + "/api/v1/desktop/kj/songs/sync"));
+                setAuthHeader(request, token);
+                request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+                QNetworkReply *reply = m_nam->post(request, QJsonDocument(req).toJson(QJsonDocument::Compact));
+                connect(reply, &QNetworkReply::finished, this, [this, reply, callback, sendLegacyClear, sendModernChunk, index]() {
+                    const QByteArray body = reply->readAll();
+                    const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                    const QString details = errorFromReply(reply, body);
+                    const bool ok = reply->error() == QNetworkReply::NoError;
+                    reply->deleteLater();
+                    if (!ok) {
+                        if (statusCode == 404) {
+                            (*sendLegacyClear)();
+                            return;
+                        }
+                        callback(false, details);
+                        return;
+                    }
+                    emit remoteSongDbUpdateProgress(index + 1);
+                    (*sendModernChunk)(index + 1);
+                });
+            };
+
+            *sendModernClear = [this, callback, baseUrl, token, sendLegacyClear, sendModernChunk]() {
+                QNetworkRequest request(QUrl(baseUrl + "/api/v1/desktop/kj/songs/sync"));
+                setAuthHeader(request, token);
+                request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+                QNetworkReply *reply = m_nam->post(request, QJsonDocument(QJsonObject{{"mode", "clear"}}).toJson(QJsonDocument::Compact));
+                connect(reply, &QNetworkReply::finished, this, [this, reply, callback, sendLegacyClear, sendModernChunk]() {
+                    const QByteArray body = reply->readAll();
+                    const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                    const QString details = errorFromReply(reply, body);
+                    const bool ok = reply->error() == QNetworkReply::NoError;
+                    reply->deleteLater();
+                    if (!ok) {
+                        if (statusCode == 404) {
+                            (*sendLegacyClear)();
+                            return;
+                        }
+                        callback(false, details);
+                        return;
+                    }
+                    (*sendModernChunk)(0);
+                });
+            };
+
+            (*sendModernClear)();
+        },
+        [callback](const QString &error) {
+            callback(false, error);
         }
-        if (errorOut) errorOut->clear();
-        return true;
-    } else if (!modernEndpointMissing) {
-        // Endpoint exists but failed for a real reason (auth/validation/server error).
-        return false;
-    }
-
-    // Legacy AutoKJ /api fallback
-    {
-        QJsonObject req{
-            {"command", "clearDatabase"},
-            {"system_id", systemId},
-        };
-        QJsonObject ignored;
-        if (!postLegacy(req, &ignored))
-            return false;
-    }
-
-    // 2) Upload chunks
-    for (int i = 0; i < m_songChunks.size(); ++i) {
-        if (m_cancelUpdate) {
-            if (errorOut) *errorOut = "Sync canceled.";
-            return false;
-        }
-        QJsonObject req{
-            {"command", "addSongs"},
-            {"system_id", systemId},
-            {"songs", m_songChunks.at(i).object().value("songs").toArray()},
-        };
-        QJsonObject ignored;
-        if (!postLegacy(req, &ignored))
-            return false;
-        emit remoteSongDbUpdateProgress(i + 1);
-    }
-
-    if (errorOut) errorOut->clear();
-    return true;
+    );
 }
 
-// â”€â”€ Venue list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-void AutoKJServerAPI::refreshVenues(bool blocking)
+void AutoKJServerAPI::refreshVenues()
 {
-    const QString token = ensureToken();
-    if (token.isEmpty())
-        return;
-
-    QString baseUrl = m_settings.requestServerUrl();
-    if (baseUrl.endsWith("/ws/kj"))
-        baseUrl.chop(6);
-    if (!baseUrl.startsWith("http"))
-        baseUrl = "https://" + baseUrl;
-
-    QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/venues"));
-    setAuthHeader(request, token);
-
-    QNetworkReply *reply = m_nam->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        onVenuesReply(reply);
-    });
-    if (blocking) {
-        QEventLoop loop;
-        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-        loop.exec();
-    }
+    ensureTokenAsync(
+        [this](const QString &token) {
+            if (token.isEmpty() && !hasHttpApiKey()) {
+                emit venuesRefreshFailed("Missing authentication.");
+                return;
+            }
+            QNetworkRequest request(QUrl(normalizedBaseUrl() + "/api/v1/desktop/kj/venues"));
+            setAuthHeader(request, token);
+            QNetworkReply *reply = m_nam->get(request);
+            connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+                onVenuesReply(reply);
+            });
+        },
+        [this](const QString &error) {
+            emit venuesRefreshFailed(error);
+        }
+    );
 }
-
 void AutoKJServerAPI::onVenuesReply(QNetworkReply *reply)
 {
+    const QByteArray body = reply->readAll();
     reply->deleteLater();
     if (reply->error() != QNetworkReply::NoError) {
-        qWarning("[AutoKJ] Venues fetch failed: %s", qPrintable(reply->errorString()));
+        const QString details = errorFromReply(reply, body);
+        qWarning("[AutoKJ] Venues fetch failed: %s", qPrintable(details));
+        emit venuesRefreshFailed(details);
         return;
     }
-    QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-    if (!doc.isArray())
+    QJsonDocument doc = QJsonDocument::fromJson(body);
+    if (!doc.isArray()) {
+        emit venuesRefreshFailed("Invalid response from /api/v1/desktop/kj/venues.");
         return;
+    }
 
     OkjsVenues venues;
     const int selectedVenueId = m_settings.requestServerVenue();
@@ -962,54 +953,171 @@ void AutoKJServerAPI::test()
 {
     m_testInProgress = true;
 
-    // Preferred path for Auto-KJ Pro backend: validate API key over HTTP first.
-    // This avoids failing the test when /ws/kj is not implemented on the server.
-    QString httpErr;
-    if (testHttpAuth(&httpErr)) {
-        m_testInProgress = false;
-        m_testTimer->stop();
-        emit testPassed();
-        return;
-    }
+    testHttpAuthAsync([this](bool ok, const QString &httpErr, bool mayBeLegacyServer) {
+        if (ok) {
+            m_testInProgress = false;
+            m_testTimer->stop();
+            emit testPassed();
+            return;
+        }
 
-    // If API gave a concrete error, prefer that over a websocket fallback.
-    // Fallback to websocket only for likely legacy servers without /api/v1/kj/venues.
-    if (!httpErr.isEmpty()) {
-        const bool mayBeLegacyServer =
-            httpErr.contains("not found", Qt::CaseInsensitive) ||
-            httpErr.contains("invalid response", Qt::CaseInsensitive);
-        if (!mayBeLegacyServer) {
+        if (!httpErr.isEmpty() && !mayBeLegacyServer) {
             m_testInProgress = false;
             m_testTimer->stop();
             emit testFailed(httpErr);
             return;
         }
-    }
 
-    // Guard websocket fallback when SSL sockets are unavailable.
-    const QString baseUrl = m_settings.requestServerUrl();
-    if ((baseUrl.startsWith("https://") || baseUrl.startsWith("wss://")) && !QSslSocket::supportsSsl()) {
-        m_testInProgress = false;
-        m_testTimer->stop();
-        emit testFailed("SSL sockets are not supported on this platform. "
-                        "Install the required OpenSSL runtime and restart Auto-KJ.");
+        const QString baseUrl = m_settings.requestServerUrl();
+        if ((baseUrl.startsWith("https://") || baseUrl.startsWith("wss://")) && !QSslSocket::supportsSsl()) {
+            m_testInProgress = false;
+            m_testTimer->stop();
+            emit testFailed("SSL sockets are not supported on this platform. Install the required OpenSSL runtime and restart Auto-KJ.");
+            return;
+        }
+
+        if (m_authenticated)
+        {
+            m_testInProgress = false;
+            m_testTimer->stop();
+            emit testPassed();
+            return;
+        }
+        m_testTimer->start();
+        if (m_socket->state() == QAbstractSocket::ConnectedState) {
+            authenticate();
+        } else {
+            connectToServer();
+        }
+    });
+}
+
+QString AutoKJServerAPI::normalizedBaseUrl() const
+{
+    QString baseUrl = m_settings.requestServerUrl().trimmed();
+    if (baseUrl.endsWith("/ws/kj"))
+        baseUrl.chop(6);
+    if (baseUrl.startsWith("wss://"))
+        baseUrl.replace(0, 6, "https://");
+    else if (baseUrl.startsWith("ws://"))
+        baseUrl.replace(0, 5, "http://");
+    else if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
+        baseUrl = "https://" + baseUrl;
+    return baseUrl;
+}
+
+QString AutoKJServerAPI::errorFromReply(QNetworkReply *reply, const QByteArray &body) const
+{
+    QString details = reply->errorString();
+    const QJsonDocument doc = QJsonDocument::fromJson(body);
+    if (doc.isObject()) {
+        const QJsonObject obj = doc.object();
+        const QString detail = obj.value("detail").toString();
+        if (!detail.isEmpty())
+            details = detail;
+        const QString errorString = obj.value("errorString").toString();
+        if (!errorString.isEmpty())
+            details = errorString;
+    }
+    return details;
+}
+
+void AutoKJServerAPI::loginAsync(const std::function<void(bool, const QString &)> &callback)
+{
+    const QString email = m_settings.requestServerEmail();
+    const QString password = m_settings.requestServerPassword();
+    if (email.isEmpty() || password.isEmpty()) {
+        callback(false, "Email and password are required.");
         return;
     }
 
-    if (m_authenticated)
-    {
-        m_testInProgress = false;
-        m_testTimer->stop();
-        emit testPassed();
+    QNetworkRequest request(QUrl(normalizedBaseUrl() + "/api/v1/auth/login"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+
+    QJsonObject body;
+    body["email"] = email;
+    body["password"] = password;
+
+    QNetworkReply *reply = m_nam->post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply, callback]() {
+        const QByteArray responseBody = reply->readAll();
+        const QString details = errorFromReply(reply, responseBody);
+        const bool ok = reply->error() == QNetworkReply::NoError;
+        reply->deleteLater();
+
+        if (!ok) {
+            callback(false, details);
+            return;
+        }
+
+        const QJsonDocument doc = QJsonDocument::fromJson(responseBody);
+        if (!doc.isObject()) {
+            callback(false, "Invalid login response from server.");
+            return;
+        }
+
+        const QString token = doc.object().value("access_token").toString();
+        if (token.isEmpty()) {
+            callback(false, details.isEmpty() ? "Login failed." : details);
+            return;
+        }
+
+        m_token = token;
+        m_settings.setRequestServerToken(token);
+        callback(true, {});
+    });
+}
+
+void AutoKJServerAPI::ensureTokenAsync(const std::function<void(const QString &)> &onSuccess,
+                                       const std::function<void(const QString &)> &onFailure)
+{
+    if (!m_token.isEmpty()) {
+        onSuccess(m_token);
         return;
     }
-    m_testTimer->start();
-    if (m_socket->state() == QAbstractSocket::ConnectedState) {
-        authenticate();
-    } else {
-        connectToServer();
+
+    const QString stored = m_settings.requestServerToken();
+    if (!stored.isEmpty()) {
+        m_token = stored;
+        onSuccess(m_token);
+        return;
     }
-    // testPassed/testFailed emitted from handleEvent when auth response arrives
+
+    if (m_settings.requestServerEmail().trimmed().isEmpty() || m_settings.requestServerPassword().trimmed().isEmpty()) {
+        if (hasHttpApiKey()) {
+            onSuccess({});
+        } else if (onFailure) {
+            onFailure("Email and password are required.");
+        }
+        return;
+    }
+
+    loginAsync([this, onSuccess, onFailure](bool ok, const QString &error) {
+        if (ok) {
+            onSuccess(m_token);
+            return;
+        }
+        if (hasHttpApiKey()) {
+            onSuccess({});
+        } else if (onFailure) {
+            onFailure(error);
+        }
+    });
+}
+bool AutoKJServerAPI::hasHttpApiKey() const
+{
+    return !m_settings.requestServerApiKey().trimmed().isEmpty();
+}
+
+void AutoKJServerAPI::setAuthHeader(QNetworkRequest &request, const QString &token)
+{
+    const QString apiKey = m_settings.requestServerApiKey().trimmed();
+    if (!token.isEmpty())
+        request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
+    if (!apiKey.isEmpty())
+        request.setRawHeader("X-Api-Key", apiKey.toUtf8());
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 }
 
 bool AutoKJServerAPI::login(QString *errorOut)
@@ -1021,11 +1129,7 @@ bool AutoKJServerAPI::login(QString *errorOut)
         return false;
     }
 
-    QString baseUrl = m_settings.requestServerUrl();
-    if (baseUrl.endsWith("/ws/kj"))
-        baseUrl.chop(6);
-    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
-        baseUrl = "https://" + baseUrl;
+    QString baseUrl = normalizedBaseUrl();
 
     QNetworkRequest request(QUrl(baseUrl + "/api/v1/auth/login"));
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -1041,7 +1145,14 @@ bool AutoKJServerAPI::login(QString *errorOut)
     loop.exec();
 
     const QByteArray responseBody = reply->readAll();
+    const QString details = errorFromReply(reply, responseBody);
+    const bool ok = reply->error() == QNetworkReply::NoError;
     reply->deleteLater();
+
+    if (!ok) {
+        if (errorOut) *errorOut = details;
+        return false;
+    }
 
     const QJsonDocument doc = QJsonDocument::fromJson(responseBody);
     if (!doc.isObject()) {
@@ -1051,8 +1162,7 @@ bool AutoKJServerAPI::login(QString *errorOut)
 
     const QString token = doc.object().value("access_token").toString();
     if (token.isEmpty()) {
-        const QString detail = doc.object().value("detail").toString();
-        if (errorOut) *errorOut = detail.isEmpty() ? "Login failed." : detail;
+        if (errorOut) *errorOut = details.isEmpty() ? "Login failed." : details;
         return false;
     }
 
@@ -1076,23 +1186,13 @@ QString AutoKJServerAPI::ensureToken(QString *errorOut)
     return m_token;
 }
 
-void AutoKJServerAPI::setAuthHeader(QNetworkRequest &request, const QString &token)
-{
-    request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-}
-
 bool AutoKJServerAPI::changePassword(const QString &currentPassword, const QString &newPassword, QString *errorOut)
 {
     QString token = ensureToken(errorOut);
     if (token.isEmpty())
         return false;
 
-    QString baseUrl = m_settings.requestServerUrl();
-    if (baseUrl.endsWith("/ws/kj"))
-        baseUrl.chop(6);
-    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
-        baseUrl = "https://" + baseUrl;
+    QString baseUrl = normalizedBaseUrl();
 
     QNetworkRequest request(QUrl(baseUrl + "/api/v1/dashboard/kj/change-password"));
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -1126,84 +1226,78 @@ bool AutoKJServerAPI::changePassword(const QString &currentPassword, const QStri
     return false;
 }
 
-bool AutoKJServerAPI::testHttpAuth(QString *errorOut)
+void AutoKJServerAPI::testHttpAuthAsync(const std::function<void(bool, const QString &, bool)> &callback)
 {
-    QString token = ensureToken(errorOut);
-    if (token.isEmpty())
-        return false;
-
-    QString baseUrl = m_settings.requestServerUrl();
-    if (baseUrl.endsWith("/ws/kj"))
-        baseUrl.chop(6);
-    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
-        baseUrl = "https://" + baseUrl;
-
+    const QString baseUrl = normalizedBaseUrl();
     if (baseUrl.startsWith("https://") && !QSslSocket::supportsSsl()) {
-        if (errorOut) *errorOut = "TLS is not available. Install the required OpenSSL runtime and restart Auto-KJ.";
-        return false;
+        callback(false, "TLS is not available. Install the required OpenSSL runtime and restart Auto-KJ.", false);
+        return;
     }
 
-    QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/venues"));
-    setAuthHeader(request, token);
-    QNetworkReply *reply = m_nam->get(request);
-    QEventLoop loop;
-    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec();
+    ensureTokenAsync(
+        [this, baseUrl, callback](const QString &token) {
+            if (token.isEmpty() && !hasHttpApiKey()) {
+                callback(false, "Missing authentication.", false);
+                return;
+            }
 
-    const QByteArray body = reply->readAll();
-    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    reply->deleteLater();
+            auto performRequest = std::make_shared<std::function<void(const QString &, bool)>>();
+            *performRequest = [this, baseUrl, callback, performRequest](const QString &requestToken, bool allowRelogin) {
+                QNetworkRequest request(QUrl(baseUrl + "/api/v1/desktop/kj/venues"));
+                setAuthHeader(request, requestToken);
+                QNetworkReply *reply = m_nam->get(request);
+                connect(reply, &QNetworkReply::finished, this, [this, reply, callback, requestToken, allowRelogin, performRequest]() {
+                    const QByteArray body = reply->readAll();
+                    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                    const QString details = errorFromReply(reply, body);
+                    const bool ok = reply->error() == QNetworkReply::NoError;
+                    reply->deleteLater();
 
-    // If 401, token may be expired — re-login once and retry
-    if (status == 401) {
-        m_token.clear();
-        m_settings.setRequestServerToken({});
-        token = QString();
-        if (!login(errorOut))
-            return false;
-        QNetworkRequest retryReq(QUrl(baseUrl + "/api/v1/kj/venues"));
-        setAuthHeader(retryReq, m_token);
-        QNetworkReply *retryReply = m_nam->get(retryReq);
-        QEventLoop loop2;
-        connect(retryReply, &QNetworkReply::finished, &loop2, &QEventLoop::quit);
-        loop2.exec();
-        const QByteArray retryBody = retryReply->readAll();
-        retryReply->deleteLater();
-        const QJsonDocument retryDoc = QJsonDocument::fromJson(retryBody);
-        if (!retryDoc.isArray()) {
-            if (errorOut) *errorOut = "Authentication failed after re-login.";
-            return false;
+                    if (status == 401 && allowRelogin && !requestToken.isEmpty()) {
+                        m_token.clear();
+                        m_settings.setRequestServerToken({});
+                        loginAsync([this, callback, performRequest](bool loginOk, const QString &error) {
+                            if (!loginOk) {
+                                callback(false, error, false);
+                                return;
+                            }
+                            (*performRequest)(m_token, false);
+                        });
+                        return;
+                    }
+
+                    if (!ok) {
+                        const bool mayBeLegacyServer =
+                            details.contains("not found", Qt::CaseInsensitive) ||
+                            details.contains("invalid response", Qt::CaseInsensitive);
+                        callback(false, details, mayBeLegacyServer);
+                        return;
+                    }
+
+                    const QJsonDocument doc = QJsonDocument::fromJson(body);
+                    if (!doc.isArray()) {
+                        callback(false, "Invalid response from /api/v1/desktop/kj/venues.", true);
+                        return;
+                    }
+
+                    callback(true, {}, false);
+                });
+            };
+
+            (*performRequest)(token.isEmpty() ? m_token : token, true);
+        },
+        [callback](const QString &error) {
+            callback(false, error, false);
         }
-        if (errorOut) errorOut->clear();
-        return true;
-    }
-
-    if (reply->error() != QNetworkReply::NoError) {
-        const QJsonDocument doc = QJsonDocument::fromJson(body);
-        QString details = reply->errorString();
-        if (doc.isObject()) {
-            const QString d = doc.object().value("detail").toString();
-            if (!d.isEmpty()) details = d;
-        }
-        if (errorOut) *errorOut = details;
-        return false;
-    }
-
-    const QJsonDocument doc = QJsonDocument::fromJson(body);
-    if (!doc.isArray()) {
-        if (errorOut) *errorOut = "Invalid response from /api/v1/kj/venues.";
-        return false;
-    }
-
-    if (errorOut) errorOut->clear();
-    return true;
+    );
 }
 
 void AutoKJServerAPI::onSocketError(QAbstractSocket::SocketError error)
 {
+    Q_UNUSED(error)
     QString errStr = m_socket->errorString();
     qWarning("[AutoKJ] Socket error: %s", qPrintable(errStr));
-    
+
     if (m_testInProgress) {
         m_testInProgress = false;
         m_testTimer->stop();
@@ -1211,13 +1305,9 @@ void AutoKJServerAPI::onSocketError(QAbstractSocket::SocketError error)
     }
 }
 
-
-// â”€â”€ Venue URL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 QString AutoKJServerAPI::venueUrl() const
 {
     QString base = m_settings.requestServerUrl();
-    // Strip trailing /ws/kj if present
     if (base.endsWith("/ws/kj"))
         base.chop(6);
     if (!base.startsWith("http://") && !base.startsWith("https://"))
@@ -1279,169 +1369,171 @@ void AutoKJServerAPI::markCheckinAdded(const QString &checkinId)
 
 void AutoKJServerAPI::createVenue(const QString &name, const QString &address, const QString &pin)
 {
-    const QString token = ensureToken();
-    if (token.isEmpty())
+    ensureTokenAsync(
+        [this, name, address, pin](const QString &token) {
+            if (token.isEmpty() && !hasHttpApiKey()) {
+                emit testFailed("Venue creation failed: Missing authentication.");
+                return;
+            }
+
+            QNetworkRequest request(QUrl(normalizedBaseUrl() + "/api/v1/desktop/kj/venues"));
+            setAuthHeader(request, token);
+            request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+            QJsonObject obj;
+            obj["name"] = name;
+            obj["address"] = address;
+            obj["kj_pin"] = pin;
+
+            QNetworkReply *reply = m_nam->post(request, QJsonDocument(obj).toJson());
+            connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+                const QByteArray body = reply->readAll();
+                const QString details = errorFromReply(reply, body);
+                const bool ok = reply->error() == QNetworkReply::NoError;
+                reply->deleteLater();
+                if (ok) {
+                    refreshVenues();
+                } else {
+                    qWarning("[AutoKJ] Venue creation failed: %s", qPrintable(details));
+                    emit testFailed("Venue creation failed: " + details);
+                }
+            });
+        },
+        [this](const QString &error) {
+            emit testFailed("Venue creation failed: " + error);
+        }
+    );
+}
+
+void AutoKJServerAPI::startNewShow()
+{
+    ensureTokenAsync(
+        [this](const QString &token) {
+            if (token.isEmpty() && !hasHttpApiKey()) {
+                emit startNewShowFinished(false, "Missing authentication.");
+                return;
+            }
+
+            const int venueId = m_settings.requestServerVenue();
+            if (venueId <= 0) {
+                emit startNewShowFinished(false, "No venue selected.");
+                return;
+            }
+
+            QNetworkRequest request(QUrl(normalizedBaseUrl() + QString("/api/v1/desktop/kj/venues/%1/gigs/start").arg(venueId)));
+            setAuthHeader(request, token);
+            request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+            QNetworkReply *reply = m_nam->post(request, QJsonDocument(QJsonObject{}).toJson(QJsonDocument::Compact));
+            connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+                const QByteArray body = reply->readAll();
+                const QString details = errorFromReply(reply, body);
+                const bool ok = reply->error() == QNetworkReply::NoError;
+                reply->deleteLater();
+                emit startNewShowFinished(ok, ok ? QString() : details);
+            });
+        },
+        [this](const QString &error) {
+            emit startNewShowFinished(false, error);
+        }
+    );
+}
+
+void AutoKJServerAPI::endActiveShow()
+{
+    ensureTokenAsync(
+        [this](const QString &token) {
+            if (token.isEmpty() && !hasHttpApiKey()) {
+                emit endActiveShowFinished(false, "Missing authentication.");
+                return;
+            }
+
+            const int venueId = m_settings.requestServerVenue();
+            if (venueId <= 0) {
+                emit endActiveShowFinished(false, "No venue selected.");
+                return;
+            }
+
+            QNetworkRequest listReq(QUrl(normalizedBaseUrl() + QString("/api/v1/desktop/kj/venues/%1/gigs").arg(venueId)));
+            setAuthHeader(listReq, token);
+            QNetworkReply *listReply = m_nam->get(listReq);
+            connect(listReply, &QNetworkReply::finished, this, [this, listReply, token]() {
+                const QByteArray listBody = listReply->readAll();
+                const QString listDetails = errorFromReply(listReply, listBody);
+                const bool listOk = listReply->error() == QNetworkReply::NoError;
+                if (!listOk) {
+                    listReply->deleteLater();
+                    emit endActiveShowFinished(false, listDetails);
+                    return;
+                }
+
+                int activeGigId = -1;
+                const QJsonDocument gigsDoc = QJsonDocument::fromJson(listBody);
+                if (gigsDoc.isArray()) {
+                    for (const auto &entry : gigsDoc.array()) {
+                        const QJsonObject obj = entry.toObject();
+                        if (obj.value("is_active").toBool(false)) {
+                            activeGigId = obj.value("id").toInt(-1);
+                            break;
+                        }
+                    }
+                }
+                listReply->deleteLater();
+
+                if (activeGigId <= 0) {
+                    m_accepting = false;
+                    refreshVenues();
+                    emit endActiveShowFinished(true, {});
+                    return;
+                }
+
+                QNetworkRequest endReq(QUrl(normalizedBaseUrl() + QString("/api/v1/desktop/kj/gigs/%1/end").arg(activeGigId)));
+                setAuthHeader(endReq, token);
+                endReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+                QNetworkReply *endReply = m_nam->post(endReq, QJsonDocument(QJsonObject{}).toJson(QJsonDocument::Compact));
+                connect(endReply, &QNetworkReply::finished, this, [this, endReply]() {
+                    const QByteArray endBody = endReply->readAll();
+                    const QString endDetails = errorFromReply(endReply, endBody);
+                    const bool ok = endReply->error() == QNetworkReply::NoError;
+                    endReply->deleteLater();
+                    if (ok) {
+                        m_accepting = false;
+                        refreshVenues();
+                    }
+                    emit endActiveShowFinished(ok, ok ? QString() : endDetails);
+                });
+            });
+        },
+        [this](const QString &error) {
+            emit endActiveShowFinished(false, error);
+        }
+    );
+}
+
+void AutoKJServerAPI::patchAcceptingState(bool enabled, const QString &token,
+                                          const std::function<void(bool, const QString &, const QString &)> &callback)
+{
+    const int venueId = m_settings.requestServerVenue();
+    if (venueId <= 0) {
+        callback(false, "No venue selected.", {});
         return;
+    }
 
-    QString baseUrl = m_settings.requestServerUrl();
-    if (baseUrl.endsWith("/ws/kj"))
-        baseUrl.chop(6);
-    if (!baseUrl.startsWith("http"))
-        baseUrl = "https://" + baseUrl;
-
-    QNetworkRequest request(QUrl(baseUrl + "/api/v1/kj/venues"));
+    QNetworkRequest request(QUrl(normalizedBaseUrl() + QString("/api/v1/desktop/kj/venues/%1").arg(venueId)));
     setAuthHeader(request, token);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
-    QJsonObject obj;
-    obj["name"] = name;
-    obj["address"] = address;
-    obj["kj_pin"] = pin;
-
-    QNetworkReply *reply = m_nam->post(request, QJsonDocument(obj).toJson());
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+    QJsonObject payload;
+    payload["accepting"] = enabled;
+    QNetworkReply *reply = m_nam->sendCustomRequest(
+        request,
+        "PATCH",
+        QJsonDocument(payload).toJson(QJsonDocument::Compact)
+    );
+    connect(reply, &QNetworkReply::finished, this, [this, reply, callback]() {
+        const QByteArray body = reply->readAll();
+        const QString details = errorFromReply(reply, body);
+        const bool ok = reply->error() == QNetworkReply::NoError;
         reply->deleteLater();
-        if (reply->error() == QNetworkReply::NoError) {
-            refreshVenues();
-        } else {
-            qWarning("[AutoKJ] Venue creation failed: %s", qPrintable(reply->errorString()));
-            emit testFailed("Venue creation failed: " + reply->errorString());
-        }
+        callback(ok, details, QString::fromUtf8(body));
     });
 }
-
-bool AutoKJServerAPI::startNewShow(QString *errorOut)
-{
-    const QString token = ensureToken(errorOut);
-    if (token.isEmpty())
-        return false;
-
-    const int venueId = m_settings.requestServerVenue();
-    if (venueId <= 0) {
-        if (errorOut) *errorOut = "No venue selected.";
-        return false;
-    }
-
-    QString baseUrl = m_settings.requestServerUrl();
-    if (baseUrl.endsWith("/ws/kj"))
-        baseUrl.chop(6);
-    if (!baseUrl.startsWith("http"))
-        baseUrl = "https://" + baseUrl;
-
-    QNetworkRequest request(QUrl(baseUrl + QString("/api/v1/kj/venues/%1/gigs/start").arg(venueId)));
-    setAuthHeader(request, token);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QNetworkReply *reply = m_nam->post(request, QJsonDocument(QJsonObject{}).toJson(QJsonDocument::Compact));
-    QEventLoop loop;
-    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec();
-
-    const QByteArray body = reply->readAll();
-    const bool ok = reply->error() == QNetworkReply::NoError;
-    if (!ok) {
-        QString details = reply->errorString();
-        const QJsonDocument doc = QJsonDocument::fromJson(body);
-        if (doc.isObject()) {
-            const QString apiDetail = doc.object().value("detail").toString();
-            if (!apiDetail.isEmpty())
-                details = apiDetail;
-        }
-        if (errorOut) *errorOut = details;
-        reply->deleteLater();
-        return false;
-    }
-
-    reply->deleteLater();
-    if (errorOut) errorOut->clear();
-    return true;
-}
-
-bool AutoKJServerAPI::endActiveShow(QString *errorOut)
-{
-    const QString token = ensureToken(errorOut);
-    if (token.isEmpty())
-        return false;
-
-    const int venueId = m_settings.requestServerVenue();
-    if (venueId <= 0) {
-        if (errorOut) *errorOut = "No venue selected.";
-        return false;
-    }
-
-    QString baseUrl = m_settings.requestServerUrl();
-    if (baseUrl.endsWith("/ws/kj"))
-        baseUrl.chop(6);
-    if (!baseUrl.startsWith("http"))
-        baseUrl = "https://" + baseUrl;
-
-    QNetworkRequest listReq(QUrl(baseUrl + QString("/api/v1/kj/venues/%1/gigs").arg(venueId)));
-    setAuthHeader(listReq, token);
-    QNetworkReply *listReply = m_nam->get(listReq);
-    QEventLoop listLoop;
-    connect(listReply, &QNetworkReply::finished, &listLoop, &QEventLoop::quit);
-    listLoop.exec();
-
-    const QByteArray listBody = listReply->readAll();
-    if (listReply->error() != QNetworkReply::NoError) {
-        QString details = listReply->errorString();
-        const QJsonDocument doc = QJsonDocument::fromJson(listBody);
-        if (doc.isObject()) {
-            const QString apiDetail = doc.object().value("detail").toString();
-            if (!apiDetail.isEmpty())
-                details = apiDetail;
-        }
-        if (errorOut) *errorOut = details;
-        listReply->deleteLater();
-        return false;
-    }
-
-    int activeGigId = -1;
-    const QJsonDocument gigsDoc = QJsonDocument::fromJson(listBody);
-    if (gigsDoc.isArray()) {
-        for (const auto &entry : gigsDoc.array()) {
-            const QJsonObject obj = entry.toObject();
-            if (obj.value("is_active").toBool(false)) {
-                activeGigId = obj.value("id").toInt(-1);
-                break;
-            }
-        }
-    }
-    listReply->deleteLater();
-
-    if (activeGigId <= 0) {
-        if (errorOut) errorOut->clear();
-        refreshVenues(true);
-        return true;
-    }
-
-    QNetworkRequest endReq(QUrl(baseUrl + QString("/api/v1/kj/gigs/%1/end").arg(activeGigId)));
-    setAuthHeader(endReq, token);
-    endReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    QNetworkReply *endReply = m_nam->post(endReq, QJsonDocument(QJsonObject{}).toJson(QJsonDocument::Compact));
-    QEventLoop endLoop;
-    connect(endReply, &QNetworkReply::finished, &endLoop, &QEventLoop::quit);
-    endLoop.exec();
-
-    const QByteArray endBody = endReply->readAll();
-    const bool ok = endReply->error() == QNetworkReply::NoError;
-    if (!ok) {
-        QString details = endReply->errorString();
-        const QJsonDocument doc = QJsonDocument::fromJson(endBody);
-        if (doc.isObject()) {
-            const QString apiDetail = doc.object().value("detail").toString();
-            if (!apiDetail.isEmpty())
-                details = apiDetail;
-        }
-        if (errorOut) *errorOut = details;
-        endReply->deleteLater();
-        return false;
-    }
-    endReply->deleteLater();
-
-    m_accepting = false;
-    refreshVenues(true);
-    if (errorOut) errorOut->clear();
-    return true;
-}
-

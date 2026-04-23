@@ -21,7 +21,9 @@ public:
 
 private slots:
     void on_btnCreate_clicked();
-    void onRegistrationFinished();
+    void onRegisterFinished();
+    void on_lineEditPassword_textChanged(const QString &);
+    void on_lineEditConfirm_textChanged(const QString &);
 
 private:
     Ui::DlgRegister *ui;
@@ -33,6 +35,8 @@ private:
 
     void setWorking(bool working);
     void showError(const QString &msg);
+    void updateInlineValidation();
+    bool passwordMeetsRequirements(const QString &password) const;
 };
 
 #endif // DLGREGISTER_H

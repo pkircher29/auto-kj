@@ -1001,6 +1001,54 @@ QPushButton:default {
             </item>
            </layout>
           </widget>
+          <widget class="QWidget" name="tabSongLibrary">
+           <attribute name="title">
+            <string>Song Library</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="verticalLayoutSongLibrary">
+            <item>
+             <widget class="QLabel" name="labelSongLibraryDirs">
+              <property name="text">
+               <string>Media directories scanned for karaoke files</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QListWidget" name="listWidgetSongLibraryDirs"/>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayoutSongLibraryButtons">
+              <item>
+               <widget class="QPushButton" name="btnAddSongLibraryDir">
+                <property name="text">
+                 <string>Add Directory</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="btnRemoveSongLibraryDir">
+                <property name="text">
+                 <string>Remove Directory</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacerSongLibrary">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
           <widget class="QWidget" name="tabWidgetPage3">
            <attribute name="title">
             <string>Network</string>
@@ -1081,63 +1129,80 @@ QPushButton:default {
                    </property>
                   </widget>
                  </item>
+                 <item row="4" column="0">
+                  <widget class="QLabel" name="labelApiKey">
+                   <property name="text">
+                    <string>API Key</string>
+                   </property>
+                  </widget>
+                 </item>
                  <item row="4" column="1">
-                    <layout class="QHBoxLayout" name="horizontalLayoutAuthLinks">
-                     <item>
-                      <widget class="QPushButton" name="btnCreateAccount">
-                       <property name="toolTip">
-                        <string>Create a new Auto-KJ account</string>
-                       </property>
-                       <property name="text">
-                        <string>No account? Create one?</string>
-                       </property>
-                       <property name="flat">
-                        <bool>true</bool>
-                       </property>
-                       <property name="styleSheet">
-                        <string>QPushButton { color: palette(link); text-align: left; padding: 0; border: none; font-size: 11px; }</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <spacer name="horizontalSpacerAuthLinks">
-                       <property name="orientation">
-                        <enum>Qt::Horizontal</enum>
-                       </property>
-                       <property name="sizeHint" stdset="0">
-                        <size>
-                         <width>40</width>
-                         <height>20</height>
-                        </size>
-                       </property>
-                      </spacer>
-                     </item>
-                     <item>
-                      <widget class="QPushButton" name="btnForgotPassword">
-                       <property name="toolTip">
-                        <string>Reset your Auto-KJ account password</string>
-                       </property>
-                       <property name="text">
-                        <string>Forgot password?</string>
-                       </property>
-                       <property name="flat">
-                        <bool>true</bool>
-                       </property>
-                       <property name="styleSheet">
-                        <string>QPushButton { color: palette(link); text-align: right; padding: 0; border: none; font-size: 11px; }</string>
-                       </property>
-                      </widget>
-                     </item>
-                    </layout>
+                  <widget class="QLineEdit" name="lineEditApiKey">
+                   <property name="toolTip">
+                    <string>API key for Pro desktop HTTP endpoints</string>
+                   </property>
+                   <property name="echoMode">
+                    <enum>QLineEdit::PasswordEchoOnEdit</enum>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="5" column="1">
+                  <layout class="QHBoxLayout" name="horizontalLayoutAuthLinks">
+                   <item>
+                    <widget class="QPushButton" name="btnCreateAccount">
+                     <property name="toolTip">
+                      <string>Create a new Auto-KJ account</string>
+                     </property>
+                     <property name="text">
+                      <string>No account? Create one…</string>
+                     </property>
+                     <property name="flat">
+                      <bool>true</bool>
+                     </property>
+                     <property name="styleSheet">
+                      <string>QPushButton { color: palette(link); text-align: left; padding: 0; border: none; font-size: 11px; }</string>
+                     </property>
+                    </widget>
                    </item>
-                 <item row="5" column="0">
+                   <item>
+                    <spacer name="horizontalSpacerAuthLinks">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>40</width>
+                       <height>20</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="btnForgotPassword">
+                     <property name="toolTip">
+                      <string>Reset your Auto-KJ account password</string>
+                     </property>
+                     <property name="text">
+                      <string>Forgot password?</string>
+                     </property>
+                     <property name="flat">
+                      <bool>true</bool>
+                     </property>
+                     <property name="styleSheet">
+                      <string>QPushButton { color: palette(link); text-align: right; padding: 0; border: none; font-size: 11px; }</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item row="6" column="0">
                   <widget class="QLabel" name="label_30">
                    <property name="text">
                     <string>System ID</string>
                    </property>
                   </widget>
                  </item>
-                 <item row="5" column="1">
+                 <item row="6" column="1">
                   <layout class="QHBoxLayout" name="horizontalLayout_2">
                    <property name="rightMargin">
                     <number>20</number>

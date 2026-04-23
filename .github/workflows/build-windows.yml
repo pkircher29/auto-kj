@@ -2,7 +2,7 @@ name: Build Auto-KJ Windows
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, release-fix-clean]
     tags: ['v*']
     paths-ignore:
       - '**.md'
@@ -22,25 +22,26 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Qt 5.15.2
-        uses: jurplel/install-qt-action@v4
+        uses: jurplel/install-qt-action@v3
         with:
           version: '5.15.2'
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2019_64'
           modules: 'qtwebengine'
-          extra: 'qtwebchannel'
 
       - name: Install GStreamer SDK
         shell: powershell
         run: |
           $url = "https://github.com/pkircher29/gstreamer/releases/download/gst-sdk-1.26.9/gstreamer-sdk-1.26.9.zip"
-          curl.exe -L --retry 3 -o gstreamer-sdk.zip $url
+          curl.exe -L --retry 5 --retry-delay 3 -o gstreamer-sdk.zip $url
+          if (!(Test-Path "gstreamer-sdk.zip")) { throw "GStreamer SDK download failed" }
           Expand-Archive -Path gstreamer-sdk.zip -DestinationPath "C:\gstreamer-sdk" -Force
           if (!(Test-Path "C:\gstreamer-sdk\bin")) { throw "GStreamer SDK extract failed" }
+          echo "GST_BASE_PATH=C:\gstreamer-sdk" >> $env:GITHUB_ENV
 
       - name: Install OpenSSL 1.1
         shell: powershell
@@ -62,9 +63,9 @@ jobs:
         shell: powershell
         run: |
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
-            "-DDEPLOY_DEPS=ON" `
+            "-DDEPLOY_DEPS=OFF" `
             "-DQT_INSTALL_PREFIX=$env:Qt5_DIR\..\..\.." `
-            "-DGST_BASE_PATH=C:\gstreamer-sdk"
+            "-DGST_BASE_PATH=$env:GST_BASE_PATH"
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -73,9 +74,9 @@ jobs:
         shell: powershell
         run: |
           $releaseDir = "build\Release"
-          & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --no-translations "$releaseDir\auto-kj.exe"
+          & "$env:Qt5_Dir\bin\windeployqt.exe" --release --no-translations "$releaseDir\auto-kj.exe"
 
-          $gstBin = "C:\gstreamer-sdk\bin"
+          $gstBin = "$env:GST_BASE_PATH\bin"
           Copy-Item "$gstBin\*.dll" -Destination $releaseDir -Force
 
           $openSslNames = @(
@@ -83,7 +84,7 @@ jobs:
             "libcrypto-1_1-x64.dll"
           )
           $searchDirs = @(
-            "$env:QT_ROOT_DIR\bin",
+            "$env:Qt5_Dir\bin",
             "$env:OPENSSL_BIN",
             "C:\Program Files\OpenSSL-Win64\bin",
             "C:\Program Files\OpenSSL\bin"
@@ -132,13 +133,13 @@ jobs:
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "cd\auto-kj64.iss"
 
       - name: Upload portable bundle artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Auto-KJ-Windows-x64-portable
           path: Auto-KJ-Windows-x64.zip
 
       - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Auto-KJ-Windows-x64-installer
           path: cd/Output/Auto-KJ-Windows-x64-Setup.exe

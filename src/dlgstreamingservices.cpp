@@ -9,6 +9,7 @@
 #include <QTableWidgetItem>
 #include <QSettings>
 #include <QMessageBox>
+#include "settings.h"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -35,9 +36,10 @@ DlgStreamingServices::DlgStreamingServices(QWidget *parent)
 
     // Restore saved settings
     QSettings s;
+    Settings settings;
     ui->lineEditSpotifyClientId->setText(s.value("streaming/spotify_client_id").toString());
     ui->lineEditYtmClientId->setText(s.value("streaming/youtube_client_id").toString());
-    ui->lineEditYtmApiKey->setText(s.value("streaming/youtube_api_key").toString());
+    ui->lineEditYtmApiKey->setText(settings.youtubeApiKey());
 
     connect(ui->btnSaveSettings, &QPushButton::clicked, this, &DlgStreamingServices::onSaveSettings);
 }
@@ -176,9 +178,7 @@ void DlgStreamingServices::onSaveSettings()
     if (!ytmClientId.isEmpty())
         m_ytm->setClientId(ytmClientId);
 
-    const QString ytKey = ui->lineEditYtmApiKey->text().trimmed();
-    if (!ytKey.isEmpty())
-        m_ytm->setApiKey(ytKey);
+    m_ytm->setApiKey(ui->lineEditYtmApiKey->text().trimmed());
 }
 
 void DlgStreamingServices::showHelp(StreamingController::Service service)

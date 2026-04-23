@@ -21,6 +21,7 @@ void AutoKJServerClientMock::setAccepting(bool enabled, bool offerEndShowPrompt)
 {
     Q_UNUSED(offerEndShowPrompt)
     m_accepting = enabled;
+    emit acceptingSetFinished(true, enabled, {});
 }
 
 bool AutoKJServerClientMock::getAccepting() const
@@ -76,9 +77,8 @@ void AutoKJServerClientMock::refreshRequests()
     emit requestsChanged(m_requests);
 }
 
-void AutoKJServerClientMock::refreshVenues(bool blocking)
+void AutoKJServerClientMock::refreshVenues()
 {
-    Q_UNUSED(blocking)
     emit venuesChanged(m_venues);
 }
 
@@ -96,18 +96,16 @@ void AutoKJServerClientMock::createVenue(const QString &name, const QString &add
     emit venuesChanged(m_venues);
 }
 
-bool AutoKJServerClientMock::startNewShow(QString *errorOut)
+void AutoKJServerClientMock::startNewShow()
 {
-    Q_UNUSED(errorOut)
     m_hasActiveShow = true;
-    return true;
+    emit startNewShowFinished(true, {});
 }
 
-bool AutoKJServerClientMock::endActiveShow(QString *errorOut)
+void AutoKJServerClientMock::endActiveShow()
 {
-    Q_UNUSED(errorOut)
     m_hasActiveShow = false;
-    return true;
+    emit endActiveShowFinished(true, {});
 }
 
 void AutoKJServerClientMock::triggerTestAdd()

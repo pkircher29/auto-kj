@@ -63,10 +63,10 @@ public:
     virtual bool changePassword(const QString &currentPassword, const QString &newPassword, QString *errorOut = nullptr) = 0;
 
     virtual void refreshRequests() {}
-    virtual void refreshVenues(bool blocking = false) = 0;
+    virtual void refreshVenues() = 0;
     virtual void createVenue(const QString &name, const QString &address, const QString &pin) = 0;
-    virtual bool startNewShow(QString *errorOut = nullptr) = 0;
-    virtual bool endActiveShow(QString *errorOut = nullptr) = 0;
+    virtual void startNewShow() = 0;
+    virtual void endActiveShow() = 0;
     virtual void triggerTestAdd() {}
 
     virtual void pushRotationUpdate(const QJsonObject &rotationData) = 0;
@@ -85,6 +85,10 @@ public:
 signals:
     void requestsChanged(OkjsRequests requests);
     void venuesChanged(const OkjsVenues &venues);
+    void venuesRefreshFailed(QString error);
+    void startNewShowFinished(bool ok, QString error);
+    void endActiveShowFinished(bool ok, QString error);
+    void acceptingSetFinished(bool ok, bool enabled, QString error);
     void synchronized(QTime time);
     void remoteSongDbUpdateProgress(int progress);
     void remoteSongDbUpdateNumDocs(int numDocs);

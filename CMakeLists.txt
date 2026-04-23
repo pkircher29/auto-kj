@@ -32,6 +32,28 @@ find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Sql Network WebSockets Widgets Concurrent Svg PrintSupport WebChannel WebEngineWidgets REQUIRED)
 
 include(FetchContent)
+
+option(AUTOKJ_USE_QTKEYCHAIN "Use QtKeychain for secure request-server credential storage" ON)
+if (AUTOKJ_USE_QTKEYCHAIN)
+    find_package(qt5keychain QUIET CONFIG)
+    if (NOT TARGET qt5keychain)
+        include(cmake/CPM.cmake)
+        CPMAddPackage(
+                NAME qtkeychain
+                GITHUB_REPOSITORY frankosterfeld/qtkeychain
+                GIT_TAG main
+                OPTIONS
+                    "BUILD_WITH_QT6 OFF"
+                    "BUILD_TEST_APPLICATION OFF"
+                    "BUILD_TRANSLATIONS OFF"
+        )
+    endif ()
+    if (TARGET qt5keychain)
+        list(APPEND LIBRARIES qt5keychain)
+        add_compile_definitions(HAVE_QTKEYCHAIN)
+    endif ()
+endif ()
+
 FetchContent_Declare(
   qrencode
   GIT_REPOSITORY https://github.com/fukuchi/libqrencode.git
@@ -41,6 +63,7 @@ set(WITHOUT_ENCODE_PROG ON CACHE BOOL "" FORCE) # Don't build CLI tool
 set(WITHOUT_TOOLS ON CACHE BOOL "" FORCE)       # Newer qrencode variable name
 set(WITH_TOOLS OFF CACHE BOOL "" FORCE)
 set(WITH_TESTS OFF CACHE BOOL "" FORCE) # Don't build tests
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(qrencode)
 set_target_properties(qrencode PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
 
@@ -102,7 +125,7 @@ if (NOT EXTERNAL_SPDLOG)
     else ()
         message(STATUS "No spdlog install found or CPM spdlog forced, pulling it in via CPM")
         include(cmake/CPM.cmake)
-        CPMAddPackage("gh:gabime/spdlog@1.8.2")
+        CPMAddPackage("gh:gabime/spdlog@1.12.0")
     endif ()
 endif ()
 
@@ -668,7 +691,13 @@ set(LIBRARIES
         Qt5::Svg
         Qt5::PrintSupport
         Qt5::Concurrent
+        Qt5::WebChannel
+        Qt5::WebEngineWidgets
         )
+
+if (TARGET qt5keychain)
+    list(APPEND LIBRARIES qt5keychain)
+endif ()
 
 # ── Platform-specific streaming deps ─────────────────────────────────────────
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
@@ -845,7 +874,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
             PROPERTY WIN32_EXECUTABLE true
     )
 
-    if (DEFINED DEPLOY_DEPS)
+    if (DEPLOY_DEPS)
         get_target_property(_qt5_qmake_location Qt5::qmake IMPORTED_LOCATION)
         execute_process(
                 COMMAND "${_qt5_qmake_location}" -query QT_INSTALL_PREFIX
@@ -868,9 +897,15 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 
             # Copy OpenSSL 1.1 runtime DLLs required by Qt 5.15 for HTTPS/TLS.
             # Look in Qt bin dir first, then the default OpenSSL Win64 install location.
+            # On CI runners the installer path may vary, so also check OPENSSL_BIN env var.
+            set(_ssl_extra_dir "$ENV{OPENSSL_BIN}")
             foreach(_ssl_dll "libssl-1_1-x64.dll" "libcrypto-1_1-x64.dll")
                 set(_ssl_found FALSE)
-                foreach(_ssl_dir "${qt5_install_prefix}/bin" "C:/Program Files/OpenSSL-Win64/bin" "C:/Program Files/OpenSSL/bin")
+                set(_ssl_search_dirs "${qt5_install_prefix}/bin" "C:/Program Files/OpenSSL-Win64/bin" "C:/Program Files/OpenSSL/bin")
+                if(_ssl_extra_dir)
+                    list(APPEND _ssl_search_dirs "${_ssl_extra_dir}")
+                endif()
+                foreach(_ssl_dir ${_ssl_search_dirs})
                     if(EXISTS "${_ssl_dir}/${_ssl_dll}")
                         add_custom_command(
                             TARGET auto-kj POST_BUILD

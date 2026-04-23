@@ -1230,12 +1230,17 @@ void MainWindow::setupConnections() {
             m_checkBoxAcceptingRequests->blockSignals(false);
         }
 
-        QString error;
-        if (!m_songbookApi.endActiveShow(&error)) {
-            QMessageBox::warning(this, "End Show Failed", error.isEmpty() ? "Could not end show." : error);
-        }
-        m_songbookApi.refreshVenues(true);
-        updateEndShowButtonState();
+        QMetaObject::Connection *endConn = new QMetaObject::Connection;
+        *endConn = connect(&m_songbookApi, &AutoKJServerClient::endActiveShowFinished, this,
+            [this, endConn](bool ok, const QString &error) {
+                disconnect(*endConn);
+                delete endConn;
+                if (!ok) {
+                    QMessageBox::warning(this, "End Show Failed", error.isEmpty() ? "Could not end show." : error);
+                }
+                updateEndShowButtonState();
+            });
+        m_songbookApi.endActiveShow();
     });
     m_venueTb->addWidget(m_btnEndShow);
     updateEndShowButtonState();
@@ -1625,6 +1630,17 @@ void MainWindow::dbInit(const QDir &okjDataDir) {
         query.exec("CREATE INDEX IF NOT EXISTS idx_spt_canonical_song_key ON songs_played_tonight(canonical_song_key)");
         query.exec("PRAGMA user_version = 111");
         m_logger->info("{} DB Schema update to v111 completed", m_loggingPrefix);
+    }
+    if (schemaVersion < 112) {
+        m_logger->info("{} Updating database schema to version 112 (Co-singer ID linking)", m_loggingPrefix);
+        query.exec("ALTER TABLE queueSongs ADD COLUMN cosinger2_id INTEGER DEFAULT NULL");
+        query.exec("ALTER TABLE queueSongs ADD COLUMN cosinger3_id INTEGER DEFAULT NULL");
+        query.exec("ALTER TABLE queueSongs ADD COLUMN cosinger4_id INTEGER DEFAULT NULL");
+        query.exec("CREATE INDEX IF NOT EXISTS idx_queuesongs_cosinger2_id ON queueSongs(cosinger2_id)");
+        query.exec("CREATE INDEX IF NOT EXISTS idx_queuesongs_cosinger3_id ON queueSongs(cosinger3_id)");
+        query.exec("CREATE INDEX IF NOT EXISTS idx_queuesongs_cosinger4_id ON queueSongs(cosinger4_id)");
+        query.exec("PRAGMA user_version = 112");
+        m_logger->info("{} DB Schema update to v112 completed", m_loggingPrefix);
     }
     m_fairnessEngine.loadState();
     m_karaokeSongsModel.refreshFairnessState();
@@ -2661,6 +2677,27 @@ void MainWindow::tableViewQueueContextMenuRequested(const QPoint &pos) {
             contextMenu.addSeparator();
             contextMenu.addAction("Set Key Change", this, &MainWindow::setKeyChange);
             contextMenu.addAction("Toggle played", this, &MainWindow::toggleQueuePlayed);
+            
+            // Co-singer linking submenu
+            int col = index.column();
+            if (col >= TableModelQueueSongs::COL_SINGER2 && col <= TableModelQueueSongs::COL_SINGER4) {
+                contextMenu.addSeparator();
+                QMenu *linkMenu = contextMenu.addMenu("Link Co-Singer");
+                int cosingerIndex = col - TableModelQueueSongs::COL_SINGER1 + 1;
+                
+                // Get rotation singers
+                for (int row = 0; row < m_rotModel.rowCount(QModelIndex()); ++row) {
+                    auto singerIdx = m_rotModel.index(row, 0);
+                    int singerId = m_rotModel.data(singerIdx, Qt::UserRole).toInt();
+                    QString singerName = m_rotModel.data(singerIdx, Qt::DisplayRole).toString();
+                    
+                    QAction *action = linkMenu->addAction(singerName);
+                    connect(action, &QAction::triggered, [this, cosingerIndex, singerId, singerName]() {
+                        m_qModel.setCosingerId(m_rtClickQueueSongId, cosingerIndex, singerId, singerName);
+                    });
+                }
+            }
+            
             contextMenu.addSeparator();
             contextMenu.addAction("Delete", &m_scutDeleteSong, &QShortcut::activated);
             contextMenu.exec(QCursor::pos());

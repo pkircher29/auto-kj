@@ -33,13 +33,160 @@
 #include <QDataStream>
 #include <QFontDatabase>
 #include <QUuid>
+#include <QEventLoop>
 #include <fstream>
+
+#ifdef HAVE_QTKEYCHAIN
+    #include <qtkeychain/keychain.h>
+#endif
 
 #ifdef Q_OS_WIN
     #include <windows.h>
     #include <sysinfoapi.h>
 #endif
 
+namespace {
+
+constexpr auto kRequestServerPasswordSetting = "requestServerPassword";
+constexpr auto kRequestServerTokenSetting = "requestServerToken";
+constexpr auto kRequestServerApiKeySetting = "requestServerApiKey";
+constexpr auto kYoutubeApiKeySetting = "streaming/youtube_api_key";
+constexpr auto kKeychainService = "Auto-KJ";
+constexpr auto kKeychainPasswordKey = "request-server-password";
+constexpr auto kKeychainTokenKey = "request-server-token";
+constexpr auto kKeychainApiKey = "request-server-api-key";
+constexpr auto kKeychainYoutubeApiKey = "streaming-youtube-api-key";
+
+#ifdef HAVE_QTKEYCHAIN
+bool isKeychainUnavailable(const QKeychain::Error error)
+{
+    return error == QKeychain::NoBackendAvailable || error == QKeychain::NotImplemented;
+}
+
+QString readSecretFromKeychain(const QString &key, bool *ok = nullptr, bool *backendUnavailable = nullptr)
+{
+    if (ok)
+        *ok = false;
+    if (backendUnavailable)
+        *backendUnavailable = false;
+
+    if (!QCoreApplication::instance()) {
+        if (backendUnavailable)
+            *backendUnavailable = true;
+        return {};
+    }
+
+    QKeychain::ReadPasswordJob job(QString::fromLatin1(kKeychainService));
+    job.setAutoDelete(false);
+    job.setKey(key);
+
+    QEventLoop loop;
+    QObject::connect(&job, &QKeychain::Job::finished, &loop, &QEventLoop::quit);
+    job.start();
+    loop.exec();
+
+    if (job.error() == QKeychain::NoError) {
+        if (ok)
+            *ok = true;
+        return job.textData();
+    }
+
+    if (job.error() == QKeychain::EntryNotFound)
+        return {};
+
+    if (backendUnavailable)
+        *backendUnavailable = isKeychainUnavailable(job.error());
+    return {};
+}
+
+bool writeSecretToKeychain(const QString &key, const QString &value, bool *backendUnavailable = nullptr)
+{
+    if (backendUnavailable)
+        *backendUnavailable = false;
+
+    if (!QCoreApplication::instance()) {
+        if (backendUnavailable)
+            *backendUnavailable = true;
+        return false;
+    }
+
+    QKeychain::WritePasswordJob job(QString::fromLatin1(kKeychainService));
+    job.setAutoDelete(false);
+    job.setKey(key);
+    job.setTextData(value);
+
+    QEventLoop loop;
+    QObject::connect(&job, &QKeychain::Job::finished, &loop, &QEventLoop::quit);
+    job.start();
+    loop.exec();
+
+    if (backendUnavailable)
+        *backendUnavailable = isKeychainUnavailable(job.error());
+    return job.error() == QKeychain::NoError;
+}
+
+void deleteSecretFromKeychain(const QString &key)
+{
+    if (!QCoreApplication::instance())
+        return;
+
+    QKeychain::DeletePasswordJob job(QString::fromLatin1(kKeychainService));
+    job.setAutoDelete(false);
+    job.setKey(key);
+
+    QEventLoop loop;
+    QObject::connect(&job, &QKeychain::Job::finished, &loop, &QEventLoop::quit);
+    job.start();
+    loop.exec();
+}
+#endif
+
+QString readStoredSecret(QSettings *settings, const QString &settingsKey, const QString &keychainKey)
+{
+    const QString legacyValue = settings->value(settingsKey, QString()).toString();
+
+#ifdef HAVE_QTKEYCHAIN
+    bool backendUnavailable = false;
+    bool readOk = false;
+    const QString secret = readSecretFromKeychain(keychainKey, &readOk, &backendUnavailable);
+    if (readOk)
+        return secret;
+
+    if (!legacyValue.isEmpty()) {
+        bool writeBackendUnavailable = false;
+        if (writeSecretToKeychain(keychainKey, legacyValue, &writeBackendUnavailable))
+            settings->remove(settingsKey);
+        return legacyValue;
+    }
+
+    if (!backendUnavailable)
+        return {};
+#endif
+
+    return legacyValue;
+}
+
+void writeStoredSecret(QSettings *settings, const QString &settingsKey, const QString &keychainKey, const QString &value)
+{
+    if (value.isEmpty()) {
+#ifdef HAVE_QTKEYCHAIN
+        deleteSecretFromKeychain(keychainKey);
+#endif
+        settings->remove(settingsKey);
+        return;
+    }
+
+#ifdef HAVE_QTKEYCHAIN
+    if (writeSecretToKeychain(keychainKey, value)) {
+        settings->remove(settingsKey);
+        return;
+    }
+#endif
+
+    settings->setValue(settingsKey, value);
+}
+
+} // namespace
 
 
 bool Settings::lastStartupOk() const
@@ -859,7 +1006,8 @@ void Settings::setRequestServerEmail(const QString &email)
     if (requestServerEmail() == trimmed)
         return;
     settings->setValue("requestServerEmail", trimmed);
-    settings->remove("requestServerToken");
+    writeStoredSecret(settings, QString::fromLatin1(kRequestServerTokenSetting),
+                             QString::fromLatin1(kKeychainTokenKey), {});
     setPremiumAntiChaosAuthorized(false);
     emit requestServerCredentialsChanged();
 }
@@ -907,6 +1055,26 @@ void Settings::setRequestServerToken(const QString &token)
     SecureCredentialStore store;
     store.store("AutoKJ/requestServerToken", token);
     settings->remove("requestServerToken");  // remove legacy plaintext
+    emit requestServerCredentialsChanged();
+}
+
+QString Settings::requestServerApiKey() const
+{
+    SecureCredentialStore store;
+    QString secure = store.load("AutoKJ/requestServerApiKey");
+    if (!secure.isEmpty())
+        return secure.trimmed();
+    return settings->value("requestServerApiKey", "").toString().trimmed();
+}
+
+void Settings::setRequestServerApiKey(const QString &apiKey)
+{
+    const QString trimmed = apiKey.trimmed();
+    if (requestServerApiKey() == trimmed)
+        return;
+    SecureCredentialStore store;
+    store.store("AutoKJ/requestServerApiKey", trimmed);
+    settings->remove("requestServerApiKey");
     emit requestServerCredentialsChanged();
 }
 
@@ -962,6 +1130,16 @@ void Settings::setDjList(const QStringList &djs)
 {
     settings->setValue("djList", djs);
     emit djListChanged();
+}
+
+QStringList Settings::mediaDirs() const
+{
+    return settings->value("media_dirs").toStringList();
+}
+
+void Settings::setMediaDirs(const QStringList &dirs)
+{
+    settings->setValue("media_dirs", dirs);
 }
 
 QString Settings::activeDj() const
@@ -1409,6 +1587,21 @@ bool Settings::bmShowMetadata()
 void Settings::bmSetShowMetadata(bool show)
 {
     settings->setValue("showMetadata", show);
+}
+
+QString Settings::youtubeApiKey() const
+{
+    return readStoredSecret(settings, QString::fromLatin1(kYoutubeApiKeySetting),
+                            QString::fromLatin1(kKeychainYoutubeApiKey)).trimmed();
+}
+
+void Settings::setYoutubeApiKey(const QString &apiKey)
+{
+    const QString trimmed = apiKey.trimmed();
+    if (youtubeApiKey() == trimmed)
+        return;
+    writeStoredSecret(settings, QString::fromLatin1(kYoutubeApiKeySetting),
+                      QString::fromLatin1(kKeychainYoutubeApiKey), trimmed);
 }
 
 int Settings::bmVolume()

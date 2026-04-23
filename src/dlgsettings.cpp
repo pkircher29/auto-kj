@@ -112,6 +112,28 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     else {
         ui->comboBoxBAudioDevices->setCurrentIndex(selDevice);
     }
+    reloadSongLibraryDirs();
+    connect(ui->btnAddSongLibraryDir, &QPushButton::clicked, this, [this]() {
+        const QString dir = QFileDialog::getExistingDirectory(this, tr("Add Song Library Directory"));
+        if (dir.isEmpty())
+            return;
+        QStringList dirs = currentSongLibraryDirs();
+        if (!dirs.contains(dir, Qt::CaseInsensitive)) {
+            dirs.append(dir);
+            m_settings.setMediaDirs(dirs);
+            reloadSongLibraryDirs();
+        }
+    });
+    connect(ui->btnRemoveSongLibraryDir, &QPushButton::clicked, this, [this]() {
+        auto *item = ui->listWidgetSongLibraryDirs->currentItem();
+        if (!item)
+            return;
+        QStringList dirs = currentSongLibraryDirs();
+        dirs.removeAll(item->text());
+        m_settings.setMediaDirs(dirs);
+        reloadSongLibraryDirs();
+    });
+
     ui->checkBoxProgressiveSearch->setChecked(m_settings.progressiveSearchEnabled());
     ui->horizontalSliderTickerSpeed->setValue(m_settings.tickerSpeed());
     QString ss = ui->pushButtonTextColor->styleSheet();
@@ -231,6 +253,10 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
 
     ui->lineEditEmail->setText(m_settings.requestServerEmail());
     ui->lineEditPassword->setText(m_settings.requestServerPassword());
+    ui->lineEditApiKey->setText(m_settings.requestServerApiKey());
+    connect(ui->lineEditApiKey, &QLineEdit::editingFinished, this, [this]() {
+        m_settings.setRequestServerApiKey(ui->lineEditApiKey->text());
+    });
     ui->checkBoxIgnoreCertErrors->setChecked(m_settings.requestServerIgnoreCertErrors());
     if ((m_settings.bgMode() == m_settings.BG_MODE_IMAGE) || (m_settings.bgSlideShowDir() == ""))
         ui->rbBgImage->setChecked(true);
@@ -373,12 +399,30 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     connect(&songbookApi, &AutoKJServerClient::entitledSystemCountChanged, this, &DlgSettings::entitledSystemCountChanged);
     connect(ui->cbxRotShowNextSong, &QCheckBox::toggled, &m_settings, &Settings::setRotationShowNextSong);
     connect(ui->cbxRotShowNextSong, &QCheckBox::toggled, this, &DlgSettings::rotationShowNextSongChanged);
+    connect(ui->listWidgetSongLibraryDirs, &QListWidget::currentRowChanged, this,
+            [this](int row) { ui->btnRemoveSongLibraryDir->setEnabled(row >= 0); });
+    ui->btnRemoveSongLibraryDir->setEnabled(ui->listWidgetSongLibraryDirs->currentRow() >= 0);
     setupHotkeysForm();
     m_pageSetupDone = true;
 }
 
 DlgSettings::~DlgSettings() {
     delete ui;
+}
+
+QStringList DlgSettings::currentSongLibraryDirs() const
+{
+    QStringList dirs;
+    for (int i = 0; i < ui->listWidgetSongLibraryDirs->count(); ++i)
+        dirs.append(ui->listWidgetSongLibraryDirs->item(i)->text());
+    return dirs;
+}
+
+void DlgSettings::reloadSongLibraryDirs()
+{
+    ui->listWidgetSongLibraryDirs->clear();
+    ui->listWidgetSongLibraryDirs->addItems(m_settings.mediaDirs());
+    ui->btnRemoveSongLibraryDir->setEnabled(ui->listWidgetSongLibraryDirs->currentRow() >= 0);
 }
 
 QStringList DlgSettings::getMonitors() {
@@ -918,6 +962,7 @@ void DlgSettings::on_btnTestReqServer_clicked() {
     m_settings.setRequestServerUrl(ui->lineEditUrl->text());
     m_settings.setRequestServerEmail(ui->lineEditEmail->text());
     m_settings.setRequestServerPassword(ui->lineEditPassword->text());
+    m_settings.setRequestServerApiKey(ui->lineEditApiKey->text());
 
     // Disconnect any previous test connections to avoid duplicate signals on repeated clicks
     static QMetaObject::Connection cFail, cSsl, cPass;
@@ -932,59 +977,81 @@ void DlgSettings::on_btnTestReqServer_clicked() {
 
 void DlgSettings::reqSvrTestError(QString error) {
     const QString lowerError = error.toLower();
-    bool venuesReceived = false;
-    bool hasVenues = true;
-    auto venuesConn = connect(&songbookApi, &AutoKJServerClient::venuesChanged, this,
-        [&](const OkjsVenues &venues) {
-            venuesReceived = true;
-            hasVenues = !venues.isEmpty();
+    const bool noActiveShowError = lowerError.contains("no active show found");
+
+    auto showFailure = [this, error]() {
+        QMessageBox msgBox;
+        msgBox.setWindowTitle("Request server test failed!");
+        msgBox.setText("Request server connection test was unsuccessful!");
+        msgBox.setInformativeText("Error msg:\n" + error);
+        msgBox.exec();
+    };
+
+    auto handleVenueState = [this, noActiveShowError, showFailure](bool venuesReceived, bool hasVenues) {
+        const bool shouldOpenVenueDialog =
+            (venuesReceived && !hasVenues) || (noActiveShowError && (!venuesReceived || !hasVenues));
+
+        if (shouldOpenVenueDialog) {
+            DlgAddVenue dlg(this);
+            dlg.setWindowTitle("Create Your First Venue");
+            if (dlg.exec() == QDialog::Accepted) {
+                songbookApi.createVenue(dlg.venueName(), dlg.venueAddress(), dlg.venuePin());
+                QMessageBox::information(this, "Venue Setup",
+                                         "Venue created. Run the connection test again.");
+            }
+            return;
+        }
+
+        if (noActiveShowError) {
+            const auto choice = QMessageBox::question(
+                this,
+                "No Active Show",
+                "Your API key is valid, but there is no active show.\n\nWould you like to start a new show now?",
+                QMessageBox::Yes | QMessageBox::No,
+                QMessageBox::Yes
+            );
+            if (choice == QMessageBox::Yes) {
+                QMetaObject::Connection *startConn = new QMetaObject::Connection;
+                *startConn = connect(&songbookApi, &AutoKJServerClient::startNewShowFinished, this,
+                    [this, startConn](bool ok, const QString &startErr) {
+                        disconnect(*startConn);
+                        delete startConn;
+                        if (ok) {
+                            QMessageBox::information(this, "Show Started", "New show started. Retesting connection now.");
+                            songbookApi.test();
+                        } else {
+                            QMessageBox::warning(this, "Unable to Start Show", "Could not start a new show.\n\n" + startErr);
+                        }
+                    });
+                songbookApi.startNewShow();
+            }
+            return;
+        }
+
+        showFailure();
+    };
+
+    QMetaObject::Connection *venuesConn = new QMetaObject::Connection;
+    QMetaObject::Connection *venuesFailConn = new QMetaObject::Connection;
+    *venuesConn = connect(&songbookApi, &AutoKJServerClient::venuesChanged, this,
+        [venuesConn, venuesFailConn, handleVenueState](const OkjsVenues &venues) {
+            disconnect(*venuesConn);
+            disconnect(*venuesFailConn);
+            delete venuesConn;
+            delete venuesFailConn;
+            handleVenueState(true, !venues.isEmpty());
+        });
+    *venuesFailConn = connect(&songbookApi, &AutoKJServerClient::venuesRefreshFailed, this,
+        [venuesConn, venuesFailConn, handleVenueState](const QString &) {
+            disconnect(*venuesConn);
+            disconnect(*venuesFailConn);
+            delete venuesConn;
+            delete venuesFailConn;
+            handleVenueState(false, false);
         });
 
-    songbookApi.refreshVenues(true);
-    disconnect(venuesConn);
-
-    const bool noActiveShowError = lowerError.contains("no active show found");
-    const bool shouldOpenVenueDialog =
-        (venuesReceived && !hasVenues) || (noActiveShowError && (!venuesReceived || !hasVenues));
-
-    if (shouldOpenVenueDialog) {
-        DlgAddVenue dlg(this);
-        dlg.setWindowTitle("Create Your First Venue");
-        if (dlg.exec() == QDialog::Accepted) {
-            songbookApi.createVenue(dlg.venueName(), dlg.venueAddress(), dlg.venuePin());
-            QMessageBox::information(this, "Venue Setup",
-                                     "Venue created. Run the connection test again.");
-        }
-        return;
-    }
-
-    if (noActiveShowError) {
-        const auto choice = QMessageBox::question(
-            this,
-            "No Active Show",
-            "Your API key is valid, but there is no active show.\n\nWould you like to start a new show now?",
-            QMessageBox::Yes | QMessageBox::No,
-            QMessageBox::Yes
-        );
-        if (choice == QMessageBox::Yes) {
-            QString startErr;
-            if (songbookApi.startNewShow(&startErr)) {
-                QMessageBox::information(this, "Show Started", "New show started. Retesting connection now.");
-                songbookApi.test();
-            } else {
-                QMessageBox::warning(this, "Unable to Start Show", "Could not start a new show.\n\n" + startErr);
-            }
-        }
-        return;
-    }
-
-    QMessageBox msgBox;
-    msgBox.setWindowTitle("Request server test failed!");
-    msgBox.setText("Request server connection test was unsuccessful!");
-    msgBox.setInformativeText("Error msg:\n" + error);
-    msgBox.exec();
+    songbookApi.refreshVenues();
 }
-
 void DlgSettings::reqSvrTestSslError(QString error) {
     QMessageBox msgBox;
     msgBox.setWindowTitle("Request server test failed!");
