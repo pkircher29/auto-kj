@@ -86,12 +86,24 @@ jobs:
           Copy-Item "$buildDir\auto-kj.exe" -Destination $releaseDir -Force
 
           $qt5KeychainDll = Join-Path $buildBinDir "qt5keychain.dll"
+          $qtBinDir = Join-Path $env:Qt5_Dir "bin"
+          $qtBinKeychainDll = Join-Path $qtBinDir "qt5keychain.dll"
+          $seededQtBinKeychain = $false
           if (Test-Path $qt5KeychainDll) {
             Copy-Item $qt5KeychainDll -Destination $releaseDir -Force
+            Copy-Item $qt5KeychainDll -Destination $qtBinKeychainDll -Force
+            $seededQtBinKeychain = $true
           }
 
-          $env:PATH = "$buildBinDir;$releaseDir;$env:PATH"
-          & "$env:Qt5_Dir\bin\windeployqt.exe" --release --no-translations --dir "$releaseDir" "$releaseDir\auto-kj.exe"
+          try {
+            $env:PATH = "$buildBinDir;$releaseDir;$env:PATH"
+            & "$env:Qt5_Dir\bin\windeployqt.exe" --release --no-translations --dir "$releaseDir" "$releaseDir\auto-kj.exe"
+          }
+          finally {
+            if ($seededQtBinKeychain -and (Test-Path $qtBinKeychainDll)) {
+              Remove-Item $qtBinKeychainDll -Force -ErrorAction SilentlyContinue
+            }
+          }
 
           $requiredQtPaths = @(
             "$releaseDir\Qt5Core.dll",
