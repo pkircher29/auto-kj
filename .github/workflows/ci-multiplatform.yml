@@ -64,7 +64,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
             libgstreamer-plugins-good1.0-dev \
-            libssl-dev cmake ninja-build pkg-config
+            libunwind-dev libssl-dev cmake ninja-build pkg-config
 
       - name: Install macOS dependencies
         if: matrix.platform == 'macos'
