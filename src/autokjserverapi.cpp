@@ -1065,6 +1065,12 @@ void AutoKJServerAPI::loginAsync(const std::function<void(bool, const QString &)
 
         m_token = token;
         m_settings.setRequestServerToken(token);
+
+        // Auto-save API key from login response (server auto-generates one if missing)
+        const QString apiKey = doc.object().value("api_key").toString();
+        if (!apiKey.isEmpty())
+            m_settings.setRequestServerApiKey(apiKey);
+
         callback(true, {});
     });
 }
