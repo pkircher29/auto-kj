@@ -1958,7 +1958,6 @@ QPushButton:default {
              </widget>
             </item>
             <item>
-                <item>
                  <widget class="QGroupBox" name="groupBox_2">
                   <property name="title">
                    <string>Warnings</string>
