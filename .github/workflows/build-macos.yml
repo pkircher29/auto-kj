@@ -63,26 +63,29 @@ jobs:
 
       - name: Package
         run: |
-          mkdir -p release
-          cp build/auto-kj release/
-          $Qt5_DIR/../../bin/macdeployqt release/auto-kj.app -always-overwrite
-          # Bundle GStreamer
-          mkdir -p release/auto-kj.app/Contents/Frameworks/GStreamer.framework
-          cp -r $GSTREAMER_ROOT/lib/gstreamer-1.0 release/auto-kj.app/Contents/Frameworks/
-          cp -r $GSTREAMER_ROOT/lib/libgst* release/auto-kj.app/Contents/Frameworks/
-          # Create DMG
-          hdiutil create -volname "Auto-KJ" -srcfolder release -ov -format UDZO Auto-KJ-macOS.dmg
+          mkdir -p dist
+          cp -R build/auto-kj.app dist/ 2>/dev/null || cp build/auto-kj dist/
+          if [ -x "$Qt5_DIR/../../bin/macdeployqt" ] && [ -d dist/auto-kj.app ]; then
+            "$Qt5_DIR/../../bin/macdeployqt" dist/auto-kj.app -always-overwrite
+            mkdir -p dist/auto-kj.app/Contents/Frameworks/GStreamer.framework
+            cp -r "$GSTREAMER_ROOT/lib/gstreamer-1.0" dist/auto-kj.app/Contents/Frameworks/
+            cp -r "$GSTREAMER_ROOT"/lib/libgst* dist/auto-kj.app/Contents/Frameworks/
+            hdiutil create -volname "Auto-KJ" -srcfolder dist -ov -format UDZO Auto-KJ-macOS.dmg
+          else
+            echo "macdeployqt or .app bundle not available; creating tarball fallback."
+            tar -czf Auto-KJ-macOS.tar.gz -C dist .
+          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Auto-KJ-macOS
-          path: Auto-KJ-macOS.dmg
+          path: Auto-KJ-macOS*
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: Auto-KJ-macOS.dmg
+          files: Auto-KJ-macOS*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

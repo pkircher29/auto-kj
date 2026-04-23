@@ -73,26 +73,31 @@ jobs:
 
       - name: Package
         run: |
-          mkdir -p release
-          cp build/auto-kj release/
-          # Bundle Qt dependencies
-          $Qt5_DIR/../../bin/linuxdeployqt release/auto-kj -always-overwrite
-          # Create AppImage
-          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
-          ./linuxdeploy-x86_64.AppImage --appdir release --executable release/auto-kj --desktop-file=assets/auto-kj.desktop --icon-file=assets/auto-kj.png --output appimage
-          mv Auto_KJ*.AppImage Auto-KJ-Linux.AppImage
+          if [ -x "$Qt5_DIR/../../bin/linuxdeployqt" ]; then
+            mkdir -p release
+            cp build/auto-kj release/
+            "$Qt5_DIR/../../bin/linuxdeployqt" release/auto-kj -always-overwrite
+            wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+            chmod +x linuxdeploy-x86_64.AppImage
+            ./linuxdeploy-x86_64.AppImage --appdir release --executable release/auto-kj --desktop-file=assets/auto-kj.desktop --icon-file=assets/auto-kj.png --output appimage
+            mv Auto_KJ*.AppImage Auto-KJ-Linux.AppImage
+          else
+            echo "linuxdeployqt not available; creating tarball fallback."
+            mkdir -p dist
+            cp build/auto-kj dist/
+            tar -czf Auto-KJ-Linux.tar.gz -C dist .
+          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Auto-KJ-Linux
-          path: Auto-KJ-Linux.AppImage
+          path: Auto-KJ-Linux*
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: Auto-KJ-Linux.AppImage
+          files: Auto-KJ-Linux*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
