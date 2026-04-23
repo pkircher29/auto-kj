@@ -1,19 +1,6 @@
-name: Build Auto-KJ Windows
+name: Build Auto-KJ Windows (DEPRECATED)
 
 on:
-  push:
-    branches: [master, main, release-fix-clean]
-    tags: ['v*']
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.gitignore'
-  pull_request:
-    branches: [master, main]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - '.gitignore'
   workflow_dispatch:
 
 jobs:
