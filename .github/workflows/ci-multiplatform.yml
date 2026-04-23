@@ -84,6 +84,10 @@ jobs:
           curl.exe -L --retry 3 -o openssl-installer.exe $url
           Start-Process openssl-installer.exe `
             -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+            
+          # Download VC Redist for the installer
+          $vcurl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+          curl.exe -L --retry 3 -o vc_redist.x64.exe $vcurl
 
           $dll = Get-ChildItem "C:\Program Files\OpenSSL*\bin" `
                    -Filter "libssl-1_1-x64.dll" -Recurse -ErrorAction SilentlyContinue |
@@ -137,6 +141,7 @@ jobs:
         run: |
           $rel = "build\Release"
           & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --no-translations "$rel\auto-kj.exe"
+          Copy-Item "vc_redist.x64.exe" -Destination "$rel\"
           
           # Generate NSIS Installer
           cd build

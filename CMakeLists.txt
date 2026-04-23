@@ -936,6 +936,20 @@ if (WIN32)
     # Icon configuration
     set(CPACK_NSIS_INSTALLED_ICON_NAME "auto-kj.exe")
     
+    # Visual C++ Redistributable
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
+    include(InstallRequiredSystemLibraries)
+    
+    # Configure NSIS to run the redistributable if found
+    if (CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
+        # We manually copy vc_redist.x64.exe in CI to the install root
+        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
+            IfFileExists '$INSTDIR\\\\vc_redist.x64.exe' 0 +3
+            DetailPrint 'Installing Visual C++ Redistributable...'
+            ExecWait '\"$INSTDIR\\\\vc_redist.x64.exe\" /install /quiet /norestart'
+        ")
+    endif ()
+
     include(CPack)
 endif ()
 
