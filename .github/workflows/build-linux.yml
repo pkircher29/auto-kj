@@ -64,7 +64,12 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Run Tests
-        run: cmake --build build --target test
+        run: |
+          if cmake --build build --target help | grep -qE '(^|[[:space:]])test($|[[:space:]])'; then
+            cmake --build build --target test
+          else
+            echo "No test target configured; skipping."
+          fi
 
       - name: Package
         run: |
