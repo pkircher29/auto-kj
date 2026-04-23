@@ -32,7 +32,6 @@ jobs:
           target: 'desktop'
           arch: 'clang_64'
           modules: 'qtwebengine'
-          extra: 'qtwebchannel'
 
       - name: Install GStreamer
         run: |
