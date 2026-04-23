@@ -901,7 +901,6 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
                 COMMAND "${CMAKE_COMMAND}" -E copy_directory "${GST_BASE_PATH}/lib/gstreamer-1.0" "$<TARGET_FILE_DIR:auto-kj>/lib/gstreamer-1.0"
         )
     endif ()
-    endif ()
 
     install(TARGETS auto-kj
         RUNTIME DESTINATION .
