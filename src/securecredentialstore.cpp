@@ -9,6 +9,8 @@
 
 #include "securecredentialstore.h"
 
+#include <string>
+
 // ── Windows ──────────────────────────────────────────────────────────────────
 #if defined(Q_OS_WIN)
 #   define WIN32_LEAN_AND_MEAN
@@ -21,15 +23,16 @@ static QByteArray toUtf8Bytes(const QString &s) { return s.toUtf8(); }
 bool SecureCredentialStore::store(const QString &target, const QString &secret)
 {
     QByteArray secretBytes = toUtf8Bytes(secret);
-    QByteArray targetBytes = target.toLocal8Bit();
+    std::wstring targetWide = target.toStdWString();
+    std::wstring userNameWide = L"autokj";
 
     CREDENTIALW cred = {};
     cred.Type                   = CRED_TYPE_GENERIC;
-    cred.TargetName             = reinterpret_cast<LPWSTR>(target.toStdWString().data());
+    cred.TargetName             = const_cast<LPWSTR>(targetWide.c_str());
     cred.CredentialBlobSize     = static_cast<DWORD>(secretBytes.size());
     cred.CredentialBlob         = reinterpret_cast<LPBYTE>(secretBytes.data());
     cred.Persist                = CRED_PERSIST_LOCAL_MACHINE;
-    cred.UserName               = L"autokj";
+    cred.UserName               = const_cast<LPWSTR>(userNameWide.c_str());
 
     if (!CredWriteW(&cred, 0)) {
         qWarning() << "[SecureCredentialStore] CredWriteW failed, HRESULT:" << GetLastError();
