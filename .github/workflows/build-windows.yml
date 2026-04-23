@@ -24,14 +24,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install Qt 5.15.2
+      - name: Cache Qt
+        id: cache-qt
+        uses: actions/cache@v4
+        with:
+          path: C:\Qt
+          key: ${{ runner.os }}-Qt6.5.3-msvc2019_64
+
+      - name: Install Qt 6.5.3
+        if: steps.cache-qt.outputs.cache-hit != 'true'
         uses: jurplel/install-qt-action@v3
         with:
-          version: '5.15.2'
+          version: '6.5.3'
           host: 'windows'
           target: 'desktop'
           arch: 'win64_msvc2019_64'
-          modules: 'qtwebengine'
+          modules: 'qtwebengine qtwebsockets qtmultimedia'
 
       - name: Install GStreamer SDK
         shell: powershell
@@ -53,6 +61,17 @@ jobs:
           if (-not $sslDll) { throw "OpenSSL 1.1 DLLs not found after install" }
           Write-Host "Found OpenSSL at: $($sslDll.DirectoryName)"
           echo "OPENSSL_BIN=$($sslDll.DirectoryName)" >> $env:GITHUB_ENV
+
+      - name: Install Visual Studio 2022 Build Tools
+        uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: "2022"
+          msbuild-architecture: "x64"
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: |
+          choco install innosetup -y
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -84,12 +103,12 @@ jobs:
           New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
           Copy-Item "$buildDir\auto-kj.exe" -Destination $releaseDir -Force
 
-          & "$env:Qt5_Dir\bin\windeployqt.exe" --release --no-translations --dir "$releaseDir" "$releaseDir\auto-kj.exe"
+          & "$env:Qt6_Dir\bin\windeployqt.exe" --release --no-translations --dir "$releaseDir" "$releaseDir\auto-kj.exe"
 
           $requiredQtPaths = @(
-            "$releaseDir\Qt5Core.dll",
-            "$releaseDir\Qt5Gui.dll",
-            "$releaseDir\Qt5Widgets.dll",
+            "$releaseDir\Qt6Core.dll",
+            "$releaseDir\Qt6Gui.dll",
+            "$releaseDir\Qt6Widgets.dll",
             "$releaseDir\platforms\qwindows.dll"
           )
           foreach ($path in $requiredQtPaths) {
