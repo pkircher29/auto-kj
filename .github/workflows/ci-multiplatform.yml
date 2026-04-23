@@ -120,7 +120,7 @@ jobs:
         shell: powershell
         run: |
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
-            -DDEPLOY_DEPS=ON `
+            -DDEPLOY_DEPS=OFF `
             "-DQT_INSTALL_PREFIX=$env:Qt5_DIR\..\..\..\" `
             "-DGST_BASE_PATH=${{ steps.gst_win.outputs.path }}"
 
@@ -141,7 +141,75 @@ jobs:
         shell: powershell
         run: |
           $rel = "build\Release"
-          & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --no-translations "$rel\auto-kj.exe"
+          $buildBinDir = "build\bin\Release"
+
+          $qt5KeychainDll = Join-Path $buildBinDir "qt5keychain.dll"
+          $qtBinKeychainDll = Join-Path $env:QT_ROOT_DIR "bin\qt5keychain.dll"
+          $seededQtBinKeychain = $false
+          if (Test-Path $qt5KeychainDll) {
+              Copy-Item $qt5KeychainDll -Destination $rel -Force
+              Copy-Item $qt5KeychainDll -Destination $qtBinKeychainDll -Force
+              $seededQtBinKeychain = $true
+          }
+
+          try {
+              $env:PATH = "$buildBinDir;$rel;$env:PATH"
+              & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --no-translations --dir "$rel" "$rel\auto-kj.exe"
+          }
+          finally {
+              if ($seededQtBinKeychain -and (Test-Path $qtBinKeychainDll)) {
+                  Remove-Item $qtBinKeychainDll -Force -ErrorAction SilentlyContinue
+              }
+          }
+
+          $gstBin = "${{ steps.gst_win.outputs.path }}\bin"
+          if (Test-Path $gstBin) {
+              Copy-Item "$gstBin\*.dll" -Destination $rel -Force
+          }
+
+          $openSslNames = @(
+              "libssl-1_1-x64.dll",
+              "libcrypto-1_1-x64.dll"
+          )
+          $searchDirs = @(
+              "$env:QT_ROOT_DIR\bin",
+              "$env:OPENSSL_BIN",
+              "C:\Program Files\OpenSSL-Win64\bin",
+              "C:\Program Files\OpenSSL\bin"
+          )
+          foreach ($dll in $openSslNames) {
+              foreach ($dir in $searchDirs) {
+                  $candidate = Join-Path $dir $dll
+                  if (Test-Path $candidate) {
+                      Copy-Item $candidate -Destination $rel -Force
+                      break
+                  }
+              }
+          }
+
+          $extraRuntimeDlls = @(
+              "spdlog.dll",
+              "qrencode.dll",
+              "libqrencode.dll"
+          )
+          $extraSearchRoots = @(
+              "build\Release",
+              "build",
+              "$env:QT_ROOT_DIR\bin"
+          ) | Where-Object { $_ -and (Test-Path $_) }
+          foreach ($dll in $extraRuntimeDlls) {
+              if (Test-Path (Join-Path $rel $dll)) {
+                  continue
+              }
+              foreach ($root in $extraSearchRoots) {
+                  $candidate = Get-ChildItem -Path $root -Filter $dll -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                  if ($candidate) {
+                      Copy-Item $candidate.FullName -Destination $rel -Force
+                      break
+                  }
+              }
+          }
+
           Copy-Item "vc_redist.x64.exe" -Destination "$rel\"
           
           # Generate NSIS Installer (Legacy)
