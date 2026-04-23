@@ -74,6 +74,7 @@ jobs:
         shell: powershell
         run: |
           $buildDir = "build\Release"
+          $buildBinDir = "build\bin\Release"
           $releaseDir = "release"
 
           if (!(Test-Path "$buildDir\auto-kj.exe")) {
@@ -84,6 +85,12 @@ jobs:
           New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
           Copy-Item "$buildDir\auto-kj.exe" -Destination $releaseDir -Force
 
+          $qt5KeychainDll = Join-Path $buildBinDir "qt5keychain.dll"
+          if (Test-Path $qt5KeychainDll) {
+            Copy-Item $qt5KeychainDll -Destination $releaseDir -Force
+          }
+
+          $env:PATH = "$buildBinDir;$releaseDir;$env:PATH"
           & "$env:Qt5_Dir\bin\windeployqt.exe" --release --no-translations --dir "$releaseDir" "$releaseDir\auto-kj.exe"
 
           $requiredQtPaths = @(
