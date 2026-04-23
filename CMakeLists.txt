@@ -874,6 +874,25 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
             PROPERTY WIN32_EXECUTABLE true
     )
 
+    function(autokj_copy_shared_dep_dll app_target dep_target)
+        if (TARGET ${dep_target})
+            get_target_property(dep_type ${dep_target} TYPE)
+            if (dep_type STREQUAL "SHARED_LIBRARY" OR dep_type STREQUAL "MODULE_LIBRARY")
+                add_custom_command(
+                        TARGET ${app_target}
+                        POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                                "$<TARGET_FILE:${dep_target}>"
+                                "$<TARGET_FILE_DIR:${app_target}>"
+                )
+                message(STATUS "Windows deploy: will copy shared dependency ${dep_target}")
+            endif ()
+        endif ()
+    endfunction()
+
+    autokj_copy_shared_dep_dll(auto-kj qrencode)
+    autokj_copy_shared_dep_dll(auto-kj spdlog)
+
     if (DEPLOY_DEPS)
         get_target_property(_qt5_qmake_location Qt5::qmake IMPORTED_LOCATION)
         execute_process(
