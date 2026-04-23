@@ -53,6 +53,24 @@ jobs:
           if (-not $sslDll) { throw "OpenSSL 1.1 DLLs not found after install" }
           Write-Host "Found OpenSSL at: $($sslDll.DirectoryName)"
           echo "OPENSSL_BIN=$($sslDll.DirectoryName)" >> $env:GITHUB_ENV
+          
+      - name: Verify OpenSSL DLLs
+        shell: powershell
+        run: |
+          $dlls = @("libssl-1_1-x64.dll", "libcrypto-1_1-x64.dll")
+          $searchDirs = @(
+            "$env:QT_ROOT_DIR\bin",
+            "$env:OPENSSL_BIN",
+            "C:\Program Files\OpenSSL-Win64\bin",
+            "C:\Program Files\OpenSSL\bin"
+          )
+          foreach ($dll in $dlls) {
+            $found = $false
+            foreach ($dir in $searchDirs) {
+              if (Test-Path "$dir\$dll") { $found = $true; break }
+            }
+            if (-not $found) { throw "Missing OpenSSL DLL: $dll" }
+          }
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1

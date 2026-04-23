@@ -1,0 +1,83 @@
+name: Build Auto-KJ macOS
+
+on:
+  push:
+    branches: [master, main]
+    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  pull_request:
+    branches: [master, main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 5.15.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          host: 'mac'
+          target: 'desktop'
+          arch: 'clang_64'
+          modules: 'qtwebengine'
+          extra: 'qtwebchannel'
+
+      - name: Install GStreamer
+        run: |
+          brew install gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav
+          echo "GSTREAMER_ROOT=$(brew --prefix gstreamer)" >> $GITHUB_ENV
+
+      - name: Install TagLib
+        run: brew install taglib
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDEPLOY_DEPS=ON \
+            -DQT_INSTALL_PREFIX=$Qt5_DIR/../../.. \
+            -DGSTREAMER_ROOT=$GSTREAMER_ROOT
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Run Tests
+        run: cmake --build build --target test
+
+      - name: Package
+        run: |
+          mkdir -p release
+          cp build/auto-kj release/
+          $Qt5_DIR/../../bin/macdeployqt release/auto-kj.app -always-overwrite
+          # Bundle GStreamer
+          mkdir -p release/auto-kj.app/Contents/Frameworks/GStreamer.framework
+          cp -r $GSTREAMER_ROOT/lib/gstreamer-1.0 release/auto-kj.app/Contents/Frameworks/
+          cp -r $GSTREAMER_ROOT/lib/libgst* release/auto-kj.app/Contents/Frameworks/
+          # Create DMG
+          hdiutil create -volname "Auto-KJ" -srcfolder release -ov -format UDZO Auto-KJ-macOS.dmg
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Auto-KJ-macOS
+          path: Auto-KJ-macOS.dmg
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Auto-KJ-macOS.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

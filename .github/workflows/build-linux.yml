@@ -1,0 +1,91 @@
+name: Build Auto-KJ Linux
+
+on:
+  push:
+    branches: [master, main]
+    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  pull_request:
+    branches: [master, main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libgl1-mesa-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad \
+            gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav \
+            libtag1-dev \
+            libssl-dev
+
+      - name: Install Qt 5.15.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'gcc_64'
+          modules: 'qtwebengine'
+          extra: 'qtwebchannel'
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDEPLOY_DEPS=ON \
+            -DQT_INSTALL_PREFIX=$Qt5_DIR/../../..
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Run Tests
+        run: cmake --build build --target test
+
+      - name: Package
+        run: |
+          mkdir -p release
+          cp build/auto-kj release/
+          # Bundle Qt dependencies
+          $Qt5_DIR/../../bin/linuxdeployqt release/auto-kj -always-overwrite
+          # Create AppImage
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir release --executable release/auto-kj --desktop-file=assets/auto-kj.desktop --icon-file=assets/auto-kj.png --output appimage
+          mv Auto_KJ*.AppImage Auto-KJ-Linux.AppImage
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Auto-KJ-Linux
+          path: Auto-KJ-Linux.AppImage
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Auto-KJ-Linux.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
