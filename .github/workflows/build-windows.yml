@@ -138,6 +138,39 @@ jobs:
           $gstBin = "$env:GST_BASE_PATH\bin"
           Copy-Item "$gstBin\*.dll" -Destination $releaseDir -Force
 
+          # Copy GStreamer plugins (required for media playback)
+          $gstPluginsDir = "$env:GST_BASE_PATH\lib\gstreamer-1.0"
+          if (Test-Path $gstPluginsDir) {
+            $destPluginsDir = Join-Path $releaseDir "lib\gstreamer-1.0"
+            New-Item -ItemType Directory -Force -Path $destPluginsDir | Out-Null
+            Copy-Item "$gstPluginsDir\*.dll" -Destination $destPluginsDir -Force
+            Write-Host "Copied GStreamer plugins to $destPluginsDir"
+          } else {
+            Write-Host "WARNING: GStreamer plugins directory not found at $gstPluginsDir"
+          }
+
+          # Copy GStreamer plugin scanner and libexec
+          $gstLibexecDir = "$env:GST_BASE_PATH\libexec\gstreamer-1.0"
+          if (Test-Path $gstLibexecDir) {
+            $destLibexecDir = Join-Path $releaseDir "libexec\gstreamer-1.0"
+            New-Item -ItemType Directory -Force -Path $destLibexecDir | Out-Null
+            Copy-Item "$gstLibexecDir\*" -Destination $destLibexecDir -Recurse -Force
+            Write-Host "Copied GStreamer libexec to $destLibexecDir"
+          } else {
+            Write-Host "WARNING: GStreamer libexec directory not found at $gstLibexecDir"
+          }
+
+          # Copy GIO modules (required for network/TLS in GStreamer)
+          $gioModulesDir = "$env:GST_BASE_PATH\lib\gio\modules"
+          if (Test-Path $gioModulesDir) {
+            $destGioDir = Join-Path $releaseDir "lib\gio\modules"
+            New-Item -ItemType Directory -Force -Path $destGioDir | Out-Null
+            Copy-Item "$gioModulesDir\*.dll" -Destination $destGioDir -Force
+            Write-Host "Copied GIO modules to $destGioDir"
+          } else {
+            Write-Host "WARNING: GIO modules directory not found at $gioModulesDir"
+          }
+
           $openSslNames = @(
             "libssl-1_1-x64.dll",
             "libcrypto-1_1-x64.dll"

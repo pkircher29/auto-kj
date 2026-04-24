@@ -179,6 +179,14 @@ int main(int argc, char *argv[]) {
     qWarning() << qgetenv("GST_PLUGIN_SYSTEM_PATH") << endl << qgetenv("GST_PLUGIN_SCANNER") << endl << qgetenv("GTK_PATH") << endl << qgetenv("GIO_EXTRA_MODULES") << endl;
 #endif
 
+#ifdef Q_OS_WIN
+    // Point GStreamer to the bundled plugins next to the executable.
+    QString winAppDir = QCoreApplication::applicationDirPath();
+    qputenv("GST_PLUGIN_SYSTEM_PATH", QString(winAppDir + "/lib/gstreamer-1.0").toLocal8Bit());
+    qputenv("GST_PLUGIN_SCANNER", QString(winAppDir + "/libexec/gstreamer-1.0/gst-plugin-scanner.exe").toLocal8Bit());
+    qputenv("GIO_EXTRA_MODULES", QString(winAppDir + "/lib/gio/modules").toLocal8Bit());
+#endif
+
     filter = new IdleDetect(&a);
     a.installEventFilter(filter);
     qputenv("GST_DEBUG", "*:3");
