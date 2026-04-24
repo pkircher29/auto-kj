@@ -42,8 +42,8 @@ The #1 reason KJs switch to Auto-KJ. No other karaoke software enforces fairness
 - **Built-in Streaming Controls** — Spotify, YouTube Music, and iTunes control right from the UI. Manage break music without switching apps.
 - **Break Music Auto-Fade** — Break music fades out when the singer starts, fades back in when they finish. No dead air.
 - **Automatic Backups** — Timestamped database backups with automatic pruning. Your show data survives hardware failures.
-- **Singer PWA** — Singers scan a QR code, request songs from their phone, see the rotation, check in for the night. No app to install. *(Coming soon)*
-- **Now-Playing Push** — Singers get notified when they're up next. No more "when's my turn??" interruptions. *(Coming soon)*
+- **Singer PWA** — Singers scan a QR code, request songs from their phone, see the rotation, check in for the night. No app to install. *(Optional server feature)*
+- **Now-Playing Push** — Singers get notified when they're up next. No more "when's my turn??" interruptions. *(Optional server feature)*
 - **SingLink** — QR-based social graph. Connect with singers, discover duet partners, request directly to the queue. *(Coming soon)*
 
 ## 💰 Pricing
@@ -52,12 +52,14 @@ The #1 reason KJs switch to Auto-KJ. No other karaoke software enforces fairness
 |------|-------|-------------|
 | **Desktop App** | Free, forever | Full hosting, fairness engine, streaming controls, all formats. No limits. No catch. |
 | **Advanced** | $14.99/mo or $129.99/yr | Singer PWA, remote requests, rotation display, now-playing push, check-ins, 3 venues, gig history, cloud sync |
-| **Unlimited** | $29.99/mo or $249.99/yr | Everything in Advanced + unlimited venues, team accounts, analytics, priority support, early access |
+| **Unlimited** | $29.99/mo or $249.99/yr | Everything in Advanced + unlimited venues, deeper analytics, priority support, early access |
 | **Lifetime** | $599.99 once | Everything in Unlimited, forever. All future features, all future updates. Extremely limited offer. |
 
 The desktop app is **free and open source** under GPL-3.0. Server features (Singer PWA, remote requests, etc.) are paid add-ons.
 
 ## 🚀 Getting Started
+
+For complete install, first-show, account, plan, and request-server setup instructions, see the [Auto-KJ User Guide](docs/USER_GUIDE.md).
 
 ### Download
 
