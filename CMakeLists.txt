@@ -506,6 +506,7 @@ set(SOURCE_FILES
         src/dlgregularimport.cpp
         src/dlgregularsingers.cpp
         src/dlgregister.cpp
+        src/dlgforgotpassword.cpp
         src/dlgsettings.cpp
         src/dlgcdg.cpp
         src/okarchive.cpp
@@ -579,6 +580,7 @@ set(SOURCE_FILES
         src/dlgregularimport.h
         src/dlgregularsingers.h
         src/dlgregister.h
+        src/dlgforgotpassword.h
         src/dlgsettings.h
         src/dlgcdg.h
         src/okarchive.h
@@ -641,6 +643,7 @@ set(SOURCE_FILES
         src/dlgregularimport.ui
         src/dlgregularsingers.ui
         src/dlgregister.ui
+        src/dlgforgotpassword.ui
         src/dlgsettings.ui
         src/dlgcdg.ui
         src/bmdbdialog.ui

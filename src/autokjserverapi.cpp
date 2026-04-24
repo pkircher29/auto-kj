@@ -1065,6 +1065,12 @@ void AutoKJServerAPI::loginAsync(const std::function<void(bool, const QString &)
 
         m_token = token;
         m_settings.setRequestServerToken(token);
+
+        // Auto-save API key from login response (server auto-generates one if missing)
+        const QString apiKey = doc.object().value("api_key").toString();
+        if (!apiKey.isEmpty())
+            m_settings.setRequestServerApiKey(apiKey);
+
         callback(true, {});
     });
 }
@@ -1110,13 +1116,26 @@ bool AutoKJServerAPI::hasHttpApiKey() const
     return !m_settings.requestServerApiKey().trimmed().isEmpty();
 }
 
-void AutoKJServerAPI::setAuthHeader(QNetworkRequest &request, const QString &token)
+void AutoKJServerAPI::setAuthHeader(QNetworkRequest &request, const QString &token, AuthMode mode)
 {
     const QString apiKey = m_settings.requestServerApiKey().trimmed();
-    if (!token.isEmpty())
+
+    if (mode == AuthMode::AutoByRoute) {
+        const QString path = request.url().path();
+        if (path.startsWith("/api/v1/desktop/kj/")) {
+            mode = AuthMode::ApiKeyOnly;
+        } else if (path.startsWith("/api/v1/dashboard/kj/")) {
+            mode = AuthMode::BearerOnly;
+        } else {
+            mode = AuthMode::DualForCompat;
+        }
+    }
+
+    if ((mode == AuthMode::BearerOnly || mode == AuthMode::DualForCompat) && !token.isEmpty())
         request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
-    if (!apiKey.isEmpty())
+    if ((mode == AuthMode::ApiKeyOnly || mode == AuthMode::DualForCompat) && !apiKey.isEmpty())
         request.setRawHeader("X-Api-Key", apiKey.toUtf8());
+
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 }
 
@@ -1241,12 +1260,19 @@ void AutoKJServerAPI::testHttpAuthAsync(const std::function<void(bool, const QSt
                 return;
             }
 
-            auto performRequest = std::make_shared<std::function<void(const QString &, bool)>>();
-            *performRequest = [this, baseUrl, callback, performRequest](const QString &requestToken, bool allowRelogin) {
-                QNetworkRequest request(QUrl(baseUrl + "/api/v1/desktop/kj/venues"));
-                setAuthHeader(request, requestToken);
+            auto validateBearer = std::make_shared<std::function<void(const QString &, bool)>>();
+            auto validateDesktop = std::make_shared<std::function<void(const QString &, bool)>>();
+
+            *validateBearer = [this, baseUrl, callback, validateBearer](const QString &requestToken, bool allowRelogin) {
+                if (requestToken.isEmpty()) {
+                    callback(true, {}, false);
+                    return;
+                }
+
+                QNetworkRequest request(QUrl(baseUrl + "/api/v1/auth/me"));
+                setAuthHeader(request, requestToken, AuthMode::BearerOnly);
                 QNetworkReply *reply = m_nam->get(request);
-                connect(reply, &QNetworkReply::finished, this, [this, reply, callback, requestToken, allowRelogin, performRequest]() {
+                connect(reply, &QNetworkReply::finished, this, [this, reply, callback, requestToken, allowRelogin, validateBearer]() {
                     const QByteArray body = reply->readAll();
                     const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
                     const QString details = errorFromReply(reply, body);
@@ -1256,15 +1282,41 @@ void AutoKJServerAPI::testHttpAuthAsync(const std::function<void(bool, const QSt
                     if (status == 401 && allowRelogin && !requestToken.isEmpty()) {
                         m_token.clear();
                         m_settings.setRequestServerToken({});
-                        loginAsync([this, callback, performRequest](bool loginOk, const QString &error) {
+                        loginAsync([this, callback, validateBearer](bool loginOk, const QString &error) {
                             if (!loginOk) {
                                 callback(false, error, false);
                                 return;
                             }
-                            (*performRequest)(m_token, false);
+                            (*validateBearer)(m_token, false);
                         });
                         return;
                     }
+
+                    if (!ok) {
+                        callback(false, details.isEmpty() ? "Bearer auth validation failed." : details, false);
+                        return;
+                    }
+
+                    const QJsonDocument doc = QJsonDocument::fromJson(body);
+                    if (!doc.isObject()) {
+                        callback(false, "Invalid response from /api/v1/auth/me.", false);
+                        return;
+                    }
+
+                    callback(true, {}, false);
+                });
+            };
+
+            *validateDesktop = [this, baseUrl, callback, validateBearer](const QString &requestToken, bool) {
+                Q_UNUSED(requestToken)
+                QNetworkRequest request(QUrl(baseUrl + "/api/v1/desktop/kj/venues"));
+                setAuthHeader(request, {}, AuthMode::ApiKeyOnly);
+                QNetworkReply *reply = m_nam->get(request);
+                connect(reply, &QNetworkReply::finished, this, [this, reply, callback, requestToken, validateBearer]() {
+                    const QByteArray body = reply->readAll();
+                    const QString details = errorFromReply(reply, body);
+                    const bool ok = reply->error() == QNetworkReply::NoError;
+                    reply->deleteLater();
 
                     if (!ok) {
                         const bool mayBeLegacyServer =
@@ -1280,11 +1332,11 @@ void AutoKJServerAPI::testHttpAuthAsync(const std::function<void(bool, const QSt
                         return;
                     }
 
-                    callback(true, {}, false);
+                    (*validateBearer)(requestToken.isEmpty() ? m_token : requestToken, true);
                 });
             };
 
-            (*performRequest)(token.isEmpty() ? m_token : token, true);
+            (*validateDesktop)(token.isEmpty() ? m_token : token, false);
         },
         [callback](const QString &error) {
             callback(false, error, false);

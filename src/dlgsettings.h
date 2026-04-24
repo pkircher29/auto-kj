@@ -146,6 +146,7 @@ private slots:
     void on_lineEditEmail_editingFinished();
     void on_lineEditPassword_editingFinished();
     void on_btnCreateAccount_clicked();
+    void on_btnForgotPassword_clicked();
     void on_btnManageSubscription_clicked();
     void on_checkBoxShowKAAAlert_toggled(bool checked);
     void on_checkBoxKAA_toggled(bool checked);
