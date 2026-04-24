@@ -18,6 +18,10 @@ project(auto-kj
         LANGUAGES CXX C
         )
 
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 4.0)
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+endif ()
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_AUTOMOC ON)
@@ -32,6 +36,7 @@ find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Sql Network WebSockets Widgets Concurrent Svg PrintSupport WebChannel WebEngineWidgets REQUIRED)
 
 include(FetchContent)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 
 option(AUTOKJ_USE_QTKEYCHAIN "Use QtKeychain for secure request-server credential storage" ON)
 if (AUTOKJ_USE_QTKEYCHAIN)

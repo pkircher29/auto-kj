@@ -72,6 +72,28 @@ void AutoKJServerClientMock::authenticate()
     emit synchronized(QTime::currentTime());
 }
 
+bool AutoKJServerClientMock::changePassword(const QString &currentPassword, const QString &newPassword, QString *errorOut)
+{
+    if (currentPassword.isEmpty()) {
+        if (errorOut != nullptr) {
+            *errorOut = "Current password is required";
+        }
+        return false;
+    }
+
+    if (newPassword.isEmpty()) {
+        if (errorOut != nullptr) {
+            *errorOut = "New password is required";
+        }
+        return false;
+    }
+
+    if (errorOut != nullptr) {
+        errorOut->clear();
+    }
+    return true;
+}
+
 void AutoKJServerClientMock::refreshRequests()
 {
     emit requestsChanged(m_requests);
