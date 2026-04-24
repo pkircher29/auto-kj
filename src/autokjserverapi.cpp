@@ -1071,6 +1071,10 @@ void AutoKJServerAPI::loginAsync(const std::function<void(bool, const QString &)
         if (!apiKey.isEmpty())
             m_settings.setRequestServerApiKey(apiKey);
 
+        const QString subscriptionTier = doc.object().value("subscription_tier").toString();
+        if (!subscriptionTier.isEmpty())
+            m_settings.setRequestServerSubscriptionTier(subscriptionTier);
+
         callback(true, {});
     });
 }
@@ -1187,6 +1191,15 @@ bool AutoKJServerAPI::login(QString *errorOut)
 
     m_token = token;
     m_settings.setRequestServerToken(token);
+
+    const QString apiKey = doc.object().value("api_key").toString();
+    if (!apiKey.isEmpty())
+        m_settings.setRequestServerApiKey(apiKey);
+
+    const QString subscriptionTier = doc.object().value("subscription_tier").toString();
+    if (!subscriptionTier.isEmpty())
+        m_settings.setRequestServerSubscriptionTier(subscriptionTier);
+
     if (errorOut) errorOut->clear();
     return true;
 }

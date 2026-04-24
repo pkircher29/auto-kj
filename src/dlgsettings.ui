@@ -1195,6 +1195,29 @@ QPushButton:default {
                    </item>
                   </layout>
                  </item>
+                 <item row="6" column="0">
+                  <widget class="QLabel" name="labelPlanTitle">
+                   <property name="text">
+                    <string>Plan</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="6" column="1">
+                  <widget class="QLabel" name="labelPlanValue">
+                   <property name="text">
+                    <string>Not available yet — sign in to load plan details.</string>
+                   </property>
+                   <property name="textFormat">
+                    <enum>Qt::RichText</enum>
+                   </property>
+                   <property name="openExternalLinks">
+                    <bool>true</bool>
+                   </property>
+                   <property name="textInteractionFlags">
+                    <set>Qt::LinksAccessibleByKeyboard|Qt::LinksAccessibleByMouse</set>
+                   </property>
+                  </widget>
+                 </item>
                  <item row="7" column="0">
                   <widget class="QLabel" name="label_30">
                    <property name="text">

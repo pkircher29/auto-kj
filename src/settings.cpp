@@ -1078,6 +1078,19 @@ void Settings::setRequestServerApiKey(const QString &apiKey)
     emit requestServerCredentialsChanged();
 }
 
+QString Settings::requestServerSubscriptionTier() const
+{
+    return settings->value("requestServer/subscriptionTier", QString()).toString().trimmed().toLower();
+}
+
+void Settings::setRequestServerSubscriptionTier(const QString &tier)
+{
+    const QString normalized = tier.trimmed().toLower();
+    if (requestServerSubscriptionTier() == normalized)
+        return;
+    settings->setValue("requestServer/subscriptionTier", normalized);
+}
+
 bool Settings::requestServerIgnoreCertErrors()
 {
     return settings->value("requestServerIgnoreCertErrors", false).toBool();

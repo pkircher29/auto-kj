@@ -258,6 +258,7 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     connect(ui->lineEditApiKey, &QLineEdit::editingFinished, this, [this]() {
         m_settings.setRequestServerApiKey(ui->lineEditApiKey->text());
     });
+    updateSubscriptionTierUi();
     ui->checkBoxIgnoreCertErrors->setChecked(m_settings.requestServerIgnoreCertErrors());
     if ((m_settings.bgMode() == m_settings.BG_MODE_IMAGE) || (m_settings.bgSlideShowDir() == ""))
         ui->rbBgImage->setChecked(true);
@@ -409,6 +410,22 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
 
 DlgSettings::~DlgSettings() {
     delete ui;
+}
+
+void DlgSettings::updateSubscriptionTierUi()
+{
+    const QString tier = m_settings.requestServerSubscriptionTier().trimmed().toLower();
+    if (tier == "advanced") {
+        ui->labelPlanValue->setText("Advanced ✅");
+    } else if (tier == "unlimited") {
+        ui->labelPlanValue->setText("Unlimited ✅");
+    } else if (tier == "lifetime") {
+        ui->labelPlanValue->setText("Lifetime ✅");
+    } else if (tier == "free") {
+        ui->labelPlanValue->setText("Free — <a href=\"https://auto-kj.com/pricing\">Upgrade</a>");
+    } else {
+        ui->labelPlanValue->setText("Not available yet — sign in to load plan details.");
+    }
 }
 
 QStringList DlgSettings::currentSongLibraryDirs() const
@@ -1067,9 +1084,11 @@ void DlgSettings::reqSvrTestSslError(QString error) {
 }
 
 void DlgSettings::reqSvrTestPassed() {
+    updateSubscriptionTierUi();
+
     QMessageBox msgBox;
     msgBox.setWindowTitle("Request server test passed");
-    msgBox.setText("Request server connection test was successful.  Server info and API key appear to be valid");
+    msgBox.setText("Request server connection test was successful. Server info, API key, and plan details appear to be valid.");
     msgBox.exec();
 }
 
