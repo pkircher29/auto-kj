@@ -1,6 +1,6 @@
 # Auto-KJ System Architecture
 
-This document describes the full stack as of v0.5.1, including the request server, authentication flow, license system, and website.
+This document describes the full stack as of v1.0.1, including the request server, authentication flow, license system, and website.
 
 ---
 

@@ -95,7 +95,7 @@ cmake ..
 make -j$(nproc)
 ```
 
-See [BUILDING.md](BUILDING.md) for platform-specific instructions.
+See [BUILD.md](BUILD.md) for platform-specific instructions.
 
 ## 🗺️ Roadmap
 
@@ -119,7 +119,7 @@ Auto-KJ is open source because karaoke software should be. PRs welcome:
 4. Push to the branch (`git push origin feature/my-feature`)
 5. Open a Pull Request
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for coding standards and guidelines.
+See our repository for coding standards and guidelines.
 
 ## 📜 License
 
