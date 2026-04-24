@@ -104,6 +104,7 @@ signals:
     void entitledSystemCountChanged(int count);
     void connectionStatusChanged(bool connected);
     void checkinsFetched(const QJsonArray &checkins);
+    void kjWebCommand(QString action, QJsonObject payload);
 };
 
 #endif // AUTOKJSERVERCLIENT_H

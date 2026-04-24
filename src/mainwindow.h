@@ -201,6 +201,7 @@ private slots:
     void updateDjList();
     void showManageDjsDialog();
     void showManageVenuesGigsDialog();
+    void handleKjWebCommand(const QString &action, const QJsonObject &payload);
     void search();
     void databaseUpdated();
     void databaseCleared();

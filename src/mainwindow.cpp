@@ -956,7 +956,6 @@ void MainWindow::setupConnections() {
         updateRotationDuration();
         m_rotModel.layoutChanged();
     });
-    connect(&m_songbookApi, &AutoKJServerClient::venuesChanged, this, &MainWindow::onVenuesChanged);
     connect(m_lazyDurationUpdater.get(), &LazyDurationUpdateController::gotDuration, &m_karaokeSongsModel,
             &TableModelKaraokeSongs::setSongDuration);
     connect(ui->tableViewRotation->selectionModel(), &QItemSelectionModel::selectionChanged, this,
@@ -1171,6 +1170,27 @@ void MainWindow::setupConnections() {
     connect(refreshVenueBtn, &QToolButton::clicked, &m_songbookApi, [this]() { m_songbookApi.refreshVenues(); });
     connect(manageVenueBtn, &QToolButton::clicked, this, &MainWindow::showManageVenuesGigsDialog);
     connect(&m_songbookApi, &AutoKJServerClient::venuesChanged, this, &MainWindow::onVenuesChanged);
+    connect(&m_songbookApi, &AutoKJServerClient::kjWebCommand, this, &MainWindow::handleKjWebCommand);
+    connect(&m_songbookApi, &AutoKJServerClient::acceptingSetFinished, this,
+            [this](bool ok, bool enabled, const QString &error) {
+        if (!m_checkBoxAcceptingRequests)
+            return;
+        m_checkBoxAcceptingRequests->blockSignals(true);
+        m_checkBoxAcceptingRequests->setChecked(ok ? enabled : m_songbookApi.getAccepting());
+        m_checkBoxAcceptingRequests->blockSignals(false);
+        if (!ok && !error.isEmpty()) {
+            QMessageBox::warning(this, "Request Server", error);
+        }
+        updateEndShowButtonState();
+    });
+    connect(&m_songbookApi, &AutoKJServerClient::connectionStatusChanged, this, [this](bool connected) {
+        if (m_venueTb)
+            m_venueTb->setEnabled(connected || m_settings.requestServerEnabled());
+        if (connected) {
+            m_songbookApi.refreshVenues();
+            rotationDataChanged();
+        }
+    });
     connect(m_comboBoxVenue, QOverload<int>::of(&QComboBox::activated), this, &MainWindow::onVenueSelected);
     
     // DJ selector (next to venue)
@@ -4925,6 +4945,126 @@ void MainWindow::updateDjList() {
 void MainWindow::showManageDjsDialog() {
     DlgManageDjs dlg(m_settings, this);
     dlg.exec();
+}
+
+void MainWindow::handleKjWebCommand(const QString &action, const QJsonObject &payload) {
+    QString normalized = action.trimmed().toLower();
+    normalized.replace('-', '_');
+
+    auto payloadString = [&payload](const QStringList &keys) {
+        for (const QString &key : keys) {
+            const QJsonValue value = payload.value(key);
+            if (value.isString() && !value.toString().trimmed().isEmpty())
+                return value.toString().trimmed();
+        }
+        return QString();
+    };
+
+    m_logger->info("{} Web command received: {}", m_loggingPrefix, normalized.toStdString());
+
+    if (normalized == "show_requests" || normalized == "open_requests") {
+        requestsDialog->show();
+        requestsDialog->raise();
+        requestsDialog->activateWindow();
+        return;
+    }
+
+    if (normalized == "show_checkins" || normalized == "open_checkins") {
+        auto *dlg = new DlgCheckins(m_rotModel, m_songbookApi, this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->show();
+        return;
+    }
+
+    if (normalized == "show_qr" || normalized == "open_qr") {
+        showQRCodeDialog();
+        return;
+    }
+
+    if (normalized == "refresh_requests") {
+        m_songbookApi.refreshRequests();
+        return;
+    }
+
+    if (normalized == "refresh_venues") {
+        m_songbookApi.refreshVenues();
+        return;
+    }
+
+    if (normalized == "set_accepting") {
+        const bool enabled = payload.value("enabled").toBool(payload.value("accepting").toBool(m_songbookApi.getAccepting()));
+        m_songbookApi.setAccepting(enabled);
+        return;
+    }
+
+    if (normalized == "toggle_accepting") {
+        m_songbookApi.setAccepting(!m_songbookApi.getAccepting());
+        return;
+    }
+
+    if (normalized == "start_show") {
+        m_songbookApi.startNewShow();
+        return;
+    }
+
+    if (normalized == "end_show") {
+        m_songbookApi.endActiveShow();
+        return;
+    }
+
+    if (normalized == "clear_requests") {
+        m_songbookApi.clearRequests();
+        return;
+    }
+
+    if (normalized == "remove_request" || normalized == "accept_request" || normalized == "reject_request") {
+        const QString requestId = payloadString({"requestId", "request_id", "id"});
+        if (!requestId.isEmpty())
+            m_songbookApi.removeRequest(requestId);
+        return;
+    }
+
+    if (normalized == "sync_song_db" || normalized == "update_song_db") {
+        m_songbookApi.updateSongDb();
+        return;
+    }
+
+    if (normalized == "karaoke_stop") {
+        audioRecorder.stop();
+        m_mediaBackendKar.stop();
+        return;
+    }
+
+    if (normalized == "karaoke_pause") {
+        if (m_mediaBackendKar.state() == MediaBackend::PlayingState)
+            m_mediaBackendKar.pause();
+        return;
+    }
+
+    if (normalized == "karaoke_resume") {
+        if (m_mediaBackendKar.state() == MediaBackend::PausedState)
+            m_mediaBackendKar.play();
+        return;
+    }
+
+    if (normalized == "break_stop") {
+        m_mediaBackendBm.stop(false);
+        return;
+    }
+
+    if (normalized == "break_pause") {
+        if (m_mediaBackendBm.state() == MediaBackend::PlayingState)
+            m_mediaBackendBm.pause();
+        return;
+    }
+
+    if (normalized == "break_resume") {
+        if (m_mediaBackendBm.state() == MediaBackend::PausedState)
+            m_mediaBackendBm.play();
+        return;
+    }
+
+    m_logger->warn("{} Ignoring unknown web command: {}", m_loggingPrefix, normalized.toStdString());
 }
 
 void MainWindow::showManageVenuesGigsDialog() {

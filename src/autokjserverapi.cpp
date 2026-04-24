@@ -417,13 +417,11 @@ void AutoKJServerAPI::handleEvent(const QString &event, const QJsonObject &data)
 
     if (event == "server:kj_web_command")
     {
-        // Commands from the KJ web tablet interface â€” will be wired to model methods in MainWindow
-        // Emit as a signal or handle directly (future: connect to MainWindow slots)
+        // Commands from the KJ web tablet interface are handled by MainWindow.
         const QString action = data.value("action").toString();
         const QJsonObject payload = data.value("payload").toObject();
-        Q_UNUSED(action)
-        Q_UNUSED(payload)
-        // TODO: emit kjWebCommand(action, payload) and handle in MainWindow
+        if (!action.isEmpty())
+            emit kjWebCommand(action, payload);
         return;
     }
 }
