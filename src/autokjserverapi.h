@@ -169,7 +169,13 @@ private:
     void loginAsync(const std::function<void(bool, const QString &)> &callback);
     void ensureTokenAsync(const std::function<void(const QString &)> &onSuccess,
                           const std::function<void(const QString &)> &onFailure = {});
-    void setAuthHeader(QNetworkRequest &request, const QString &token);
+    enum class AuthMode {
+        AutoByRoute,
+        ApiKeyOnly,
+        BearerOnly,
+        DualForCompat
+    };
+    void setAuthHeader(QNetworkRequest &request, const QString &token, AuthMode mode = AuthMode::AutoByRoute);
     bool hasHttpApiKey() const;
     void testHttpAuthAsync(const std::function<void(bool, const QString &, bool)> &callback);
     void tryLegacySongDbSyncAsync(const std::function<void(bool, const QString &)> &callback);
