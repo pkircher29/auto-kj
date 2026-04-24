@@ -796,6 +796,18 @@ int TableModelRotation::singerTurnDistance(const int singerId) const {
 void TableModelRotation::setRotationTopSingerId(const int id) {
     m_rotationTopSingerId = id;
     m_settings.setLastRunRotationTopSingerId(id);
+
+    const auto &topSinger = getSinger(id);
+    if (topSinger.isValid() && topSinger.position != 0) {
+        singerMove(topSinger.position, 0);
+        return;
+    }
+
+    if (!m_singers.empty()) {
+        emit dataChanged(index(0, COL_NAME), index(static_cast<int>(m_singers.size()) - 1, COL_NAME),
+                         QVector<int>{Qt::BackgroundRole});
+    }
+    emit rotationModified();
 }
 
 const okj::RotationSinger &TableModelRotation::getSingerAtPosition(int position) const {

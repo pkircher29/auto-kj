@@ -252,7 +252,7 @@ void MainWindow::setupShortcuts() {
         m_songbookApi.notifySongPlayed(nextSinger.name, m_curArtist, m_curTitle, nextSinger.nextSongCoSingers(), m_settings.kjName());
         m_songbookApi.pushNowPlaying(nextSinger.name, m_curArtist, m_curTitle,
                                      static_cast<int>(m_mediaBackendKar.duration() / 1000), nextSinger.nextSongKeyChg());
-        if (m_settings.rotationAltSortOrder()) {
+        if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
             auto curSingerPos = nextSinger.position;
             m_curSingerOriginalPosition = curSingerPos;
             if (curSingerPos != 0)
@@ -1681,7 +1681,7 @@ void MainWindow::play(const QString &karaokeFilePath, const bool &k2k) {
                 cdgWindow->showAlert(false);
             }
             m_mediaBackendKar.stop();
-            if (m_k2kTransition && m_settings.rotationAltSortOrder() && m_rotModel.singerCount() > 1)
+            if (m_k2kTransition && m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1 && m_rotModel.singerCount() > 1)
                 m_rotModel.singerMove(0, static_cast<int>(m_rotModel.singerCount() - 1));
             ui->spinBoxTempo->setValue(100);
         }
@@ -1980,7 +1980,7 @@ void MainWindow::tableViewRotationDoubleClicked(const QModelIndex &index) {
             m_qModel.setPlayed(singer.nextSongQueueId());
             m_rotDelegate.setCurrentSinger(singerId);
             m_rotModel.setCurrentSinger(singerId);
-            if (m_settings.rotationAltSortOrder()) {
+            if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
                 auto curSingerPos = m_rotModel.getSinger(singerId).position;
                 m_curSingerOriginalPosition = curSingerPos;
                 if (curSingerPos != 0) {
@@ -2084,7 +2084,7 @@ void MainWindow::tableViewQueueDoubleClicked(const QModelIndex &index) {
         m_mediaBackendKar.stop();
         while (m_mediaBackendKar.state() == MediaBackend::PlayingState)
             QApplication::processEvents();
-        if (m_settings.rotationAltSortOrder())
+        if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1)
             m_rotModel.singerMove(0, static_cast<int>(m_rotModel.singerCount() -1), true);
     }
     else if (m_mediaBackendKar.state() == MediaBackend::PausedState) {
@@ -2140,7 +2140,7 @@ void MainWindow::tableViewQueueDoubleClicked(const QModelIndex &index) {
     m_songbookApi.notifySongPlayed(singer.name, song.artist, song.title, cosingers, m_settings.kjName());
     m_songbookApi.pushNowPlaying(singer.name, song.artist, song.title,
                                  static_cast<int>(m_mediaBackendKar.duration() / 1000), song.keyChange);
-    if (m_settings.rotationAltSortOrder()) {
+    if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
         // Need a new copy of the singer since the rotation has changed since we last grabbed them
         singer = m_rotModel.getSinger(singer.id);
         m_curSingerOriginalPosition = singer.position;
@@ -2409,8 +2409,14 @@ void MainWindow::karaokeMediaBackend_stateChanged(const MediaBackend::State &sta
                 }
             }
         }
-        if (m_settings.rotationAltSortOrder()) {
+        if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
             m_rotModel.singerMove(0, static_cast<int>(m_rotModel.singerCount() - 1));
+            m_rotModel.setCurrentSinger(-1);
+            m_rotDelegate.setCurrentSinger(-1);
+            ui->tableViewRotation->clearSelection();
+            ui->tableViewRotation->selectRow(0);
+            m_rotModel.setCurRemainSecs(0);
+        } else if (m_settings.rotationAltSortOrder()) {
             m_rotModel.setCurrentSinger(-1);
             m_rotDelegate.setCurrentSinger(-1);
             ui->tableViewRotation->clearSelection();
@@ -3086,7 +3092,7 @@ void MainWindow::karaokeAATimerTimeout() {
         m_qModel.setPlayed(singer.nextSongQueueId());
         m_rotModel.setCurrentSinger(m_kAANextSinger);
         m_rotDelegate.setCurrentSinger(m_kAANextSinger);
-        if (m_settings.rotationAltSortOrder()) {
+        if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
             m_curSingerOriginalPosition = singer.position;
             if (singer.position != 0)
                 m_rotModel.singerMove(singer.position, 0);
@@ -4703,7 +4709,7 @@ void MainWindow::buttonHistoryPlayClicked() {
     m_mediaBackendKar.setPitchShift(curKeyChange);
     m_rotModel.setCurrentSinger(curSingerId);
     m_rotDelegate.setCurrentSinger(curSingerId);
-    if (m_settings.rotationAltSortOrder()) {
+    if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
         auto curSingerPos = m_rotModel.getSinger(curSingerId).position;
         m_curSingerOriginalPosition = curSingerPos;
         if (curSingerPos != 0)
