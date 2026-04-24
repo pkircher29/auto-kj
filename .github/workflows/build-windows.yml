@@ -138,15 +138,24 @@ jobs:
           $gstBin = "$env:GST_BASE_PATH\bin"
           Copy-Item "$gstBin\*.dll" -Destination $releaseDir -Force
 
-          # Copy GStreamer plugins (required for media playback)
-          $gstPluginsDir = "$env:GST_BASE_PATH\lib\gstreamer-1.0"
-          if (Test-Path $gstPluginsDir) {
-            $destPluginsDir = Join-Path $releaseDir "lib\gstreamer-1.0"
-            New-Item -ItemType Directory -Force -Path $destPluginsDir | Out-Null
-            Copy-Item "$gstPluginsDir\*.dll" -Destination $destPluginsDir -Force
-            Write-Host "Copied GStreamer plugins to $destPluginsDir"
+          # GStreamer plugins: Roger's custom SDK has all gst*.dll in bin/ (flat),
+          # but GStreamer at runtime expects them in lib/gstreamer-1.0/.
+          # Copy gst*.dll from bin/ into lib/gstreamer-1.0/ so GST_PLUGIN_SYSTEM_PATH works.
+          $destPluginsDir = Join-Path $releaseDir "lib\gstreamer-1.0"
+          New-Item -ItemType Directory -Force -Path $destPluginsDir | Out-Null
+          $gstPlugins = Get-ChildItem -Path "$gstBin\gst*.dll" -File -ErrorAction SilentlyContinue
+          if ($gstPlugins.Count -gt 0) {
+            Copy-Item "$gstBin\gst*.dll" -Destination $destPluginsDir -Force
+            Write-Host "Copied $($gstPlugins.Count) GStreamer plugin DLLs to $destPluginsDir"
           } else {
-            Write-Host "WARNING: GStreamer plugins directory not found at $gstPluginsDir"
+            # Fallback: check for standard lib/gstreamer-1.0 directory
+            $gstPluginsDir = "$env:GST_BASE_PATH\lib\gstreamer-1.0"
+            if (Test-Path $gstPluginsDir) {
+              Copy-Item "$gstPluginsDir\*.dll" -Destination $destPluginsDir -Force
+              Write-Host "Copied GStreamer plugins from lib dir to $destPluginsDir"
+            } else {
+              Write-Host "WARNING: No GStreamer plugins found anywhere"
+            }
           }
 
           # Copy GStreamer plugin scanner and libexec
@@ -157,7 +166,16 @@ jobs:
             Copy-Item "$gstLibexecDir\*" -Destination $destLibexecDir -Recurse -Force
             Write-Host "Copied GStreamer libexec to $destLibexecDir"
           } else {
-            Write-Host "WARNING: GStreamer libexec directory not found at $gstLibexecDir"
+            # Check for gst-plugin-scanner in bin/ (flat SDK)
+            $scanner = Get-ChildItem -Path "$gstBin\gst-plugin-scanner*" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($scanner) {
+              $destLibexecDir = Join-Path $releaseDir "libexec\gstreamer-1.0"
+              New-Item -ItemType Directory -Force -Path $destLibexecDir | Out-Null
+              Copy-Item $scanner.FullName -Destination $destLibexecDir -Force
+              Write-Host "Copied gst-plugin-scanner from bin to $destLibexecDir"
+            } else {
+              Write-Host "WARNING: GStreamer plugin scanner not found"
+            }
           }
 
           # Copy GIO modules (required for network/TLS in GStreamer)
