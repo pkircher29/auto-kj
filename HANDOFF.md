@@ -16,35 +16,33 @@ Ship a stable Windows desktop build, verify the GitHub Windows artifact pipeline
 - `master`
 
 ## Latest safe commit
-- `adbe9f9d` — fix: resolve merge conflict in autokjserverapi.cpp and add missing Qt WebChannel/WebEngineWidgets
+- `9b4cb8a1` — docs: add install and account guide
 
 ## Current status
-- Windows workflow exists in `.github/workflows/build-windows.yml`
-- **Fixed**: merge conflict markers left in `autokjserverapi.cpp` by Roger (lines 965-972)
-- **Fixed**: missing Qt WebChannel/WebEngineWidgets modules in CMakeLists.txt
-- Build re-triggered: run `24662134822` (push) + `24662137786` (manual)
-- Release work should only continue from a clean, understood state
+- **Windows build is GREEN** ✅ (run `24900979790`)
+- Linux build is GREEN ✅
+- macOS build still queued/running
+- Multi-platform CI workflow now exists alongside Windows-only workflow
+- Roger shipped: release readiness cleanup, subscription tier in settings, auth header split, web dashboard command wiring, install guide
+- Lisa synced local master to `origin/master` (`9b4cb8a1`)
 
 ## Doing now
-- [x] Lisa synced to origin/master (commit `01c15268`)
-- [x] Lisa: fixed merge conflict + missing Qt modules
-- [x] Lisa: re-triggered Windows build
-- [x] Lisa: added qtwebchannel via `extra` param (build `24718824821` in progress)
-- [ ] Monitor build run `24718824821`
-- [ ] If green, prepare tag/release decision
-- [ ] If red, fix the first failing step only
+- [ ] Decide: tag/release now that Windows + Linux are green?
+- [ ] Lisa: continue autokj-pro playback backend work
+- [ ] Roger: monitor macOS build, address if red
 
 ## Blocked
-- [ ] Waiting on Qt WebChannel module availability in CI
+- None currently 🎉
 
 ## Next
-- [x] Lisa: pivot back to autokj-pro playback backend work
-- [ ] Paul/Roger: monitor Windows build, merge any fix branches
-- [ ] Target by Thursday: released auto-kj + pro on deck
+- [ ] Paul: tag/release decision — builds are green
+- [ ] Lisa: autokj-pro playback worker
+- [ ] Roger: macOS CI if it fails
 
 ## Handoff notes
-- **2026-04-20 10:43 UTC** — Lisa fixed Roger's accidental merge conflict markers in `autokjserverapi.cpp` and added missing Qt modules. Build in progress.
-- **2026-04-21 11:03 UTC** — Lisa pivoting back to autokj-pro. Windows build `24718824821` running with qtwebchannel via `extra` param. Paul/Roger to monitor.
+- **2026-04-20 10:43 UTC** — Lisa fixed Roger's accidental merge conflict markers in `autokjserverapi.cpp` and added missing Qt modules.
+- **2026-04-21 11:03 UTC** — Lisa pivoting to autokj-pro. Windows build running with qtwebchannel via `extra` param.
+- **2026-04-24 19:22 UTC** — Lisa synced to `9b4cb8a1`. Windows + Linux builds are GREEN. Roger shipped significant cleanup work. Ready for release decision.
 
 ## Handoff rules
 1. Update this file before switching context
