@@ -113,15 +113,18 @@ QVariant TableModelRotation::getBackgroundRole(const QModelIndex &index) const {
         if (index.column() > 0)
             return (m_settings.theme() == 1) ? QColor(180, 180, 0) : QColor("yellow");
     } else if (index.column() == COL_NAME) {
-        if (singer.id == m_rotationTopSingerId && m_settings.rotationAltSortOrder())
-            return QColor("green");
-        if (singer.numSongsSung() == 0)
-            return QColor(140, 30, 150);
-        // Check if singer has already sung this round
+        bool sungThisRound = false;
         QSqlQuery q;
         q.prepare("SELECT sung_this_round FROM rotationsingers WHERE singerid = :id");
         q.bindValue(":id", singer.id);
         if (q.exec() && q.next() && q.value(0).toInt() != 0)
+            sungThisRound = true;
+
+        if (singer.id == m_rotationTopSingerId && m_settings.rotationAltSortOrder())
+            return sungThisRound ? QColor(120, 120, 120) : QColor("green");
+        if (singer.numSongsSung() == 0)
+            return QColor(140, 30, 150);
+        if (sungThisRound)
             return (m_settings.theme() == 1) ? QColor(160, 100, 0) : QColor(255, 200, 100);
     }
     return {};
