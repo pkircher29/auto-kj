@@ -16,33 +16,36 @@ Ship a stable Windows desktop build, verify the GitHub Windows artifact pipeline
 - `master`
 
 ## Latest safe commit
-- `9b4cb8a1` — docs: add install and account guide
+- `6f1785cd` — fix: bundle GStreamer plugins, libexec, and GIO modules in Windows release
 
 ## Current status
-- **Windows build is GREEN** ✅ (run `24900979790`)
+- **Windows build was GREEN** ✅ (run `24900979790`) — but missing GStreamer plugins
+- **New build in progress** (run `24912108249`) with GStreamer plugins fix
 - Linux build is GREEN ✅
 - macOS build still queued/running
 - Multi-platform CI workflow now exists alongside Windows-only workflow
 - Roger shipped: release readiness cleanup, subscription tier in settings, auth header split, web dashboard command wiring, install guide
-- Lisa synced local master to `origin/master` (`9b4cb8a1`)
+- Lisa fixed: merge conflict markers, missing Qt modules, missing GStreamer plugins + env vars
 
 ## Doing now
-- [ ] Decide: tag/release now that Windows + Linux are green?
+- [ ] Verify new build `24912108249` includes GStreamer plugins in artifact
+- [ ] If green, confirm `lib/gstreamer-1.0/` exists in portable zip
+- [ ] Paul: tag/release decision once plugins verified
 - [ ] Lisa: continue autokj-pro playback backend work
-- [ ] Roger: monitor macOS build, address if red
 
 ## Blocked
-- None currently 🎉
+- None currently (pending build verification)
 
 ## Next
-- [ ] Paul: tag/release decision — builds are green
+- [ ] Paul: tag/release decision — builds are green, plugins now bundled
 - [ ] Lisa: autokj-pro playback worker
-- [ ] Roger: macOS CI if it fails
+- [ ] Roger: macOS CI if it fails, release automation improvements
 
 ## Handoff notes
 - **2026-04-20 10:43 UTC** — Lisa fixed Roger's accidental merge conflict markers in `autokjserverapi.cpp` and added missing Qt modules.
 - **2026-04-21 11:03 UTC** — Lisa pivoting to autokj-pro. Windows build running with qtwebchannel via `extra` param.
-- **2026-04-24 19:22 UTC** — Lisa synced to `9b4cb8a1`. Windows + Linux builds are GREEN. Roger shipped significant cleanup work. Ready for release decision.
+- **2026-04-24 19:22 UTC** — Lisa synced to `9b4cb8a1`. Windows + Linux builds are GREEN. Roger shipped significant cleanup work.
+- **2026-04-24 21:12 UTC** — Lisa found GStreamer plugins were missing from Windows bundle. Fixed CI to copy `lib/gstreamer-1.0/`, `libexec/`, `lib/gio/modules/`. Added `GST_PLUGIN_SYSTEM_PATH` env var in `main.cpp` for Windows. Build `24912108249` in progress.
 
 ## Handoff rules
 1. Update this file before switching context
