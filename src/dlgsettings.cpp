@@ -982,14 +982,29 @@ void DlgSettings::on_btnTestReqServer_clicked() {
     m_settings.setRequestServerEmail(ui->lineEditEmail->text());
     m_settings.setRequestServerPassword(ui->lineEditPassword->text());
 
+    ui->btnTestReqServer->setEnabled(false);
+    ui->btnTestReqServer->setText(tr("Testing…"));
+
     // Disconnect any previous test connections to avoid duplicate signals on repeated clicks
     static QMetaObject::Connection cFail, cSsl, cPass;
     QObject::disconnect(cFail);
     QObject::disconnect(cSsl);
     QObject::disconnect(cPass);
-    cFail = connect(&songbookApi, &AutoKJServerClient::testFailed,   this, &DlgSettings::reqSvrTestError);
-    cSsl  = connect(&songbookApi, &AutoKJServerClient::testSslError, this, &DlgSettings::reqSvrTestSslError);
-    cPass = connect(&songbookApi, &AutoKJServerClient::testPassed,   this, &DlgSettings::reqSvrTestPassed);
+    cFail = connect(&songbookApi, &AutoKJServerClient::testFailed, this, [this](QString error) {
+        ui->btnTestReqServer->setEnabled(true);
+        ui->btnTestReqServer->setText(tr("Test Connection"));
+        reqSvrTestError(error);
+    });
+    cSsl  = connect(&songbookApi, &AutoKJServerClient::testSslError, this, [this](QString error) {
+        ui->btnTestReqServer->setEnabled(true);
+        ui->btnTestReqServer->setText(tr("Test Connection"));
+        reqSvrTestSslError(error);
+    });
+    cPass = connect(&songbookApi, &AutoKJServerClient::testPassed, this, [this]() {
+        ui->btnTestReqServer->setEnabled(true);
+        ui->btnTestReqServer->setText(tr("Test Connection"));
+        reqSvrTestPassed();
+    });
     songbookApi.test();
 }
 
@@ -1082,8 +1097,8 @@ void DlgSettings::reqSvrTestPassed() {
     updateSubscriptionTierUi();
 
     QMessageBox msgBox;
-    msgBox.setWindowTitle("Request server test passed");
-    msgBox.setText("Request server connection test was successful. Server info, API key, and plan details appear to be valid.");
+    msgBox.setWindowTitle("Connection Successful");
+    msgBox.setText("Connected to Auto-KJ server. Your account and plan details are valid.");
     msgBox.exec();
 }
 
