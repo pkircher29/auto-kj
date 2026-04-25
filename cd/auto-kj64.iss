@@ -6,7 +6,7 @@
 #define MyAppPublisher "Auto-KJ Project"
 #define MyAppURL "https://auto-kj.com/"
 #define MyAppExeName "auto-kj.exe"
-#define MyAppId "{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}"
+#define MyAppId "{46399006-AB5A-4F90-A5BC-2D1E6529EFC6}"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -23,6 +23,10 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 UsePreviousAppDir=no
+UsePreviousSetupType=no
+UsePreviousGroup=no
+UsePreviousAppId=no
+CreateUninstallRegKey=yes
 LicenseFile=Output\LICENSE.txt
 OutputBaseFilename=Auto-KJ-Windows-x64-Setup
 Compression=lzma
@@ -49,6 +53,10 @@ Source: "Output\vc_redist.x64.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\*"
+; Remove old uninstall key (previous GUID) so fresh install path is used
+Type: regkey; Name: "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"
+Type: regkey; Name: "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"
+Type: regkey; Name: "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

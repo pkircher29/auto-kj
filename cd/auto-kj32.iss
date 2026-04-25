@@ -6,7 +6,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Auto-KJ"
-#define MyAppVersion "1.0.0-beta1"
+#define MyAppVersion "0.7.6"
 #define MyAppPublisher "Auto-KJ Project"
 #define MyAppURL "https://auto-kj.com/"
 #define MyAppExeName "auto-kj.exe"
@@ -15,7 +15,7 @@
 ; NOTE: The value of AppId uniquely identifies this application.
 ; Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}
+AppId={{46399006-AB5A-4F90-A5BC-2D1E6529EFC6}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
@@ -25,6 +25,11 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
+UsePreviousAppDir=no
+UsePreviousSetupType=no
+UsePreviousGroup=no
+UsePreviousAppId=no
+CreateUninstallRegKey=yes
 LicenseFile=output\LICENSE.txt
 OutputBaseFilename=Auto-KJ-Windows-x86-Setup
 Compression=lzma
@@ -47,6 +52,12 @@ Source: "output\Roboto-Medium.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto Med
 Source: "output\Roboto-Regular.ttf"; DestDir: "{fonts}"; FontInstall: "Roboto"; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "output\SourceCodePro-Medium.ttf"; DestDir: "{fonts}"; FontInstall: "Source Code Pro Medium"; Flags: onlyifdoesntexist uninsneveruninstall
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
+
+[InstallDelete]
+; Remove old uninstall key (previous GUID) so fresh install path is used
+Type: regkey; Name: "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"
+Type: regkey; Name: "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"
+Type: regkey; Name: "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
