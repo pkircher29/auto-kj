@@ -152,7 +152,6 @@ private:
     QString m_lastEmail;
     QString m_lastPassword;
     QString m_lastToken;
-    QString m_lastApiKey;
     int m_lastVenueId{-1};
 
     OkjsRequests m_requests;
@@ -177,14 +176,7 @@ private:
     void loginAsync(const std::function<void(bool, const QString &)> &callback);
     void ensureTokenAsync(const std::function<void(const QString &)> &onSuccess,
                           const std::function<void(const QString &)> &onFailure = {});
-    enum class AuthMode {
-        AutoByRoute,
-        ApiKeyOnly,
-        BearerOnly,
-        DualForCompat
-    };
-    void setAuthHeader(QNetworkRequest &request, const QString &token, AuthMode mode = AuthMode::AutoByRoute);
-    bool hasHttpApiKey() const;
+    void setAuthHeader(QNetworkRequest &request, const QString &token);
     void testHttpAuthAsync(const std::function<void(bool, const QString &, bool)> &callback);
     void tryLegacySongDbSyncAsync(const std::function<void(bool, const QString &)> &callback);
     void patchAcceptingState(bool enabled, const QString &token,
