@@ -22,6 +22,7 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
+UsePreviousAppDir=no
 LicenseFile=Output\LICENSE.txt
 OutputBaseFilename=Auto-KJ-Windows-x64-Setup
 Compression=lzma
