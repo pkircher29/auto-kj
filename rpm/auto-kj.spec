@@ -10,8 +10,8 @@ Release:        5%{?dist}
 Summary:        Karaoke show hosting software
 
 License:        GPL
-URL:            https://Auto-KJ.org
-Source0:	https://github.com/Auto-KJ/Auto-KJ/releases/download/v2.0.5-release/Auto-KJ-2.0.5-release.tar.gz
+URL:            https://auto-kj.com
+Source0:	https://github.com/pkircher29/auto-kj/releases/download/v2.0.5-release/Auto-KJ-2.0.5-release.tar.gz
 
 BuildRequires:  cmake qt5-qtbase-devel qt5-qtsvg-devel qt5-qtmultimedia-devel gstreamer1-devel gstreamer1-plugins-base-devel taglib-devel taglib-extras-devel
 Requires:       qt5-qtbase qt5-qtsvg qt5-qtmultimedia gstreamer1 gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free unzip gstreamer1-libav taglib taglib-extras google-roboto-fonts google-roboto-mono-fonts

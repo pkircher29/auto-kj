@@ -4655,7 +4655,7 @@ void MainWindow::comboBoxSearchTypeIndexChanged(int index) {
 }
 
 void MainWindow::actionDocumentation() {
-    QDesktopServices::openUrl(QUrl("https://docs.Auto-KJ.org"));
+    QDesktopServices::openUrl(QUrl("https://auto-kj.com"));
 }
 
 void MainWindow::buttonHistoryPlayClicked() {
