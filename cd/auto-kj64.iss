@@ -52,9 +52,9 @@ Type: filesandordirs; Name: "{app}\*"
 
 ; Remove old OpenKJ uninstall registry keys so stale install paths don't interfere
 [Registry]
-Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Flags: deletekey uninsdeletekey
-Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Flags: deletekey uninsdeletekey
-Root: HKLM; Subkey: "SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Flags: deletekey uninsdeletekey
+Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Flags: deletekey uninsdeletekey
+Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Flags: deletekey uninsdeletekey
+Root: HKLM; Subkey: "SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Flags: deletekey uninsdeletekey
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
