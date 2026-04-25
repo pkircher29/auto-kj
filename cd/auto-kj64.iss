@@ -49,6 +49,10 @@ Source: "Output\vc_redist.x64.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\*"
+; Remove old uninstall keys so stale install paths are completely severed
+Type: regkey; Name: "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Check: "RegKeyExists(HKLM, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1')"
+Type: regkey; Name: "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Check: "RegKeyExists(HKCU, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1')"
+Type: regkey; Name: "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Check: "RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1')"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
