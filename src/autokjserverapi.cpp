@@ -1262,7 +1262,7 @@ void AutoKJServerAPI::testHttpAuthAsync(const std::function<void(bool, const QSt
                         QNetworkRequest req2(QUrl(baseUrl + "/api/v1/auth/me"));
                         setAuthHeader(req2, m_token);
                         QNetworkReply *reply2 = m_nam->get(req2);
-                        connect(reply2, &QNetworkReply::finished, this, [reply2, callback]() {
+                        connect(reply2, &QNetworkReply::finished, this, [this, reply2, callback]() {
                             const QByteArray body2 = reply2->readAll();
                             const QString details2 = errorFromReply(reply2, body2);
                             const bool ok2 = reply2->error() == QNetworkReply::NoError;
