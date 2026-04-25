@@ -6,7 +6,7 @@
 #define MyAppPublisher "Auto-KJ Project"
 #define MyAppURL "https://auto-kj.com/"
 #define MyAppExeName "auto-kj.exe"
-#define MyAppId "{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}"
+#define MyAppId "{F44D870A-A63F-4CBB-84AF-DAFDCE7C2A9A}"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
