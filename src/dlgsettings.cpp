@@ -254,10 +254,6 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
 
     ui->lineEditEmail->setText(m_settings.requestServerEmail());
     ui->lineEditPassword->setText(m_settings.requestServerPassword());
-    ui->lineEditApiKey->setText(m_settings.requestServerApiKey());
-    connect(ui->lineEditApiKey, &QLineEdit::editingFinished, this, [this]() {
-        m_settings.setRequestServerApiKey(ui->lineEditApiKey->text());
-    });
     updateSubscriptionTierUi();
     ui->checkBoxIgnoreCertErrors->setChecked(m_settings.requestServerIgnoreCertErrors());
     if ((m_settings.bgMode() == m_settings.BG_MODE_IMAGE) || (m_settings.bgSlideShowDir() == ""))
@@ -985,7 +981,6 @@ void DlgSettings::on_btnTestReqServer_clicked() {
     m_settings.setRequestServerUrl(ui->lineEditUrl->text());
     m_settings.setRequestServerEmail(ui->lineEditEmail->text());
     m_settings.setRequestServerPassword(ui->lineEditPassword->text());
-    m_settings.setRequestServerApiKey(ui->lineEditApiKey->text());
 
     // Disconnect any previous test connections to avoid duplicate signals on repeated clicks
     static QMetaObject::Connection cFail, cSsl, cPass;
