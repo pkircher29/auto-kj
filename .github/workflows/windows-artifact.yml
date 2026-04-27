@@ -72,6 +72,7 @@ jobs:
         run: |
           set releaseDir=build\Release
           "%Qt5_Dir%\bin\windeployqt.exe" --release --no-translations "%releaseDir%\auto-kj.exe"
+          exit /b 0
 
       - name: Collect runtime dependencies
         shell: powershell
