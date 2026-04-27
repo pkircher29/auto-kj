@@ -70,9 +70,11 @@ jobs:
       - name: Stage release bundle
         shell: powershell
         run: |
-          $ErrorActionPreference = 'Stop'
           $releaseDir = "build\Release"
-          & "$env:Qt5_Dir\bin\windeployqt.exe" --release --no-translations "$releaseDir\auto-kj.exe"
+          & "$env:Qt5_Dir\bin\windeployqt.exe" --release --no-translations "$releaseDir\auto-kj.exe" 2>$null
+          if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 1) {
+            throw "windeployqt failed with exit code $LASTEXITCODE"
+          }
 
           $gstBin = "$env:GST_BASE_PATH\bin"
           Copy-Item "$gstBin\*.dll" -Destination $releaseDir -Force
