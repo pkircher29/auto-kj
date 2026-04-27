@@ -70,6 +70,7 @@ jobs:
       - name: Stage release bundle
         shell: powershell
         run: |
+          $ErrorActionPreference = 'Stop'
           $releaseDir = "build\Release"
           & "$env:Qt5_Dir\bin\windeployqt.exe" --release --no-translations "$releaseDir\auto-kj.exe"
 
@@ -139,8 +140,19 @@ jobs:
           }
 
           New-Item -ItemType Directory -Force -Path release | Out-Null
-          Copy-Item "$releaseDir\*" -Destination "release\" -Recurse -Force
+          Write-Host "Copying release files to staging directory..."
+          try {
+            Copy-Item "$releaseDir\*" -Destination "release\" -Recurse -Force -ErrorAction Stop
+            Write-Host "Copy complete. Contents:"
+            Get-ChildItem release | ForEach-Object { Write-Host "  $_" }
+          } catch {
+            Write-Error "Failed to copy release files: $_"
+            # Try without Recurse for locked files
+            Copy-Item "$releaseDir\*" -Destination "release\" -Force
+          }
+          Write-Host "Creating zip archive..."
           Compress-Archive -Path "release\*" -DestinationPath "Auto-KJ-Windows-x64.zip" -Force
+          Write-Host "Archive created successfully."
 
       - name: Build installer
         shell: powershell
