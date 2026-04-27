@@ -68,13 +68,15 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Stage release bundle
+        shell: cmd
+        run: |
+          set releaseDir=build\Release
+          "%Qt5_Dir%\bin\windeployqt.exe" --release --no-translations "%releaseDir%\auto-kj.exe"
+
+      - name: Collect runtime dependencies
         shell: powershell
         run: |
           $releaseDir = "build\Release"
-          & "$env:Qt5_Dir\bin\windeployqt.exe" --release --no-translations "$releaseDir\auto-kj.exe" 2>$null
-          if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 1) {
-            throw "windeployqt failed with exit code $LASTEXITCODE"
-          }
 
           $gstBin = "$env:GST_BASE_PATH\bin"
           Copy-Item "$gstBin\*.dll" -Destination $releaseDir -Force
@@ -131,7 +133,6 @@ jobs:
             }
           }
           if (-not $redistCopied) {
-            # Fallback: download directly from Microsoft
             $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
             Invoke-WebRequest -Uri $vcRedistUrl -OutFile "$releaseDir\vc_redist.x64.exe"
             Write-Host "Downloaded vc_redist.x64.exe from Microsoft"
@@ -142,19 +143,8 @@ jobs:
           }
 
           New-Item -ItemType Directory -Force -Path release | Out-Null
-          Write-Host "Copying release files to staging directory..."
-          try {
-            Copy-Item "$releaseDir\*" -Destination "release\" -Recurse -Force -ErrorAction Stop
-            Write-Host "Copy complete. Contents:"
-            Get-ChildItem release | ForEach-Object { Write-Host "  $_" }
-          } catch {
-            Write-Error "Failed to copy release files: $_"
-            # Try without Recurse for locked files
-            Copy-Item "$releaseDir\*" -Destination "release\" -Force
-          }
-          Write-Host "Creating zip archive..."
+          Copy-Item "$releaseDir\*" -Destination "release\" -Recurse -Force
           Compress-Archive -Path "release\*" -DestinationPath "Auto-KJ-Windows-x64.zip" -Force
-          Write-Host "Archive created successfully."
 
       - name: Build installer
         shell: powershell
