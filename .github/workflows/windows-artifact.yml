@@ -103,15 +103,35 @@ jobs:
             }
           }
 
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          if (Test-Path $vswhere) {
-            $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Runtime.UCRTSDK -property installationPath
-            if ($installPath) {
-              $redist = Get-ChildItem -Path "$installPath\VC\Redist\MSVC" -Filter "vc_redist.x64.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
-              if ($redist) {
-                Copy-Item $redist -Destination $releaseDir -Force
+          # Try VCToolsRedistDir first (set by ilammy/msvc-dev-cmd), then fall back to vswhere
+          $redistCopied = $false
+          if ($env:VCToolsRedistDir) {
+            $redist = Get-ChildItem -Path $env:VCToolsRedistDir -Filter "vc_redist.x64.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+            if ($redist) {
+              Copy-Item $redist -Destination $releaseDir -Force
+              Write-Host "Collected vc_redist.x64.exe from VCToolsRedistDir"
+              $redistCopied = $true
+            }
+          }
+          if (-not $redistCopied) {
+            $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+            if (Test-Path $vswhere) {
+              $installPath = & $vswhere -latest -products * -property installationPath
+              if ($installPath) {
+                $redist = Get-ChildItem -Path "$installPath\VC\Redist\MSVC" -Filter "vc_redist.x64.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+                if ($redist) {
+                  Copy-Item $redist -Destination $releaseDir -Force
+                  Write-Host "Collected vc_redist.x64.exe from vswhere"
+                  $redistCopied = $true
+                }
               }
             }
+          }
+          if (-not $redistCopied) {
+            # Fallback: download directly from Microsoft
+            $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+            Invoke-WebRequest -Uri $vcRedistUrl -OutFile "$releaseDir\vc_redist.x64.exe"
+            Write-Host "Downloaded vc_redist.x64.exe from Microsoft"
           }
 
           if (Test-Path "LICENSE") {

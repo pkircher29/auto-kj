@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Auto-KJ"
-#define MyAppVersion "0.7.6"
+#define MyAppVersion "0.7.7"
 #define MyAppPublisher "Auto-KJ Project"
 #define MyAppURL "https://auto-kj.com/"
 #define MyAppExeName "auto-kj.exe"
