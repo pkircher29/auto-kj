@@ -249,7 +249,6 @@ public:
     void setBreakMusicDir(QString dir);
     bool breakMusicEnabled();
     void setBreakMusicEnabled(bool enabled);
-    void setRecordingRawExtension(QString extension);
     int cdgOffsetTop();
     int cdgOffsetBottom();
     int cdgOffsetLeft();
