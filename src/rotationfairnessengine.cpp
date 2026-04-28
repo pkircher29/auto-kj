@@ -5,8 +5,8 @@
 #include <QSqlError>
 #include <spdlog/spdlog.h>
 
-RotationFairnessEngine::RotationFairnessEngine(TableModelRotation &rotModel, QObject *parent)
-    : QObject(parent), m_rotModel(rotModel) {}
+RotationFairnessEngine::RotationFairnessEngine(TableModelRotation &rotModel, Settings &settings, QObject *parent)
+    : QObject(parent), m_rotModel(rotModel), m_settings(settings) {}
 
 void RotationFairnessEngine::loadState() {
     // Ensure rotation_meta table has the current_round row
@@ -107,6 +107,15 @@ int RotationFairnessEngine::resolveNameToId(const QString &name) const {
 }
 
 void RotationFairnessEngine::checkAndAdvanceRound() {
+    // Don't advance if there are no singers in the rotation at all
+    QSqlQuery countQ;
+    countQ.exec("SELECT COUNT(*) FROM rotationsingers");
+    int totalSingers = 0;
+    if (countQ.next())
+        totalSingers = countQ.value(0).toInt();
+    if (totalSingers == 0)
+        return;
+
     // Check if all singers in the rotation have sung_this_round = 1
     QSqlQuery q;
     q.exec("SELECT COUNT(*) FROM rotationsingers WHERE sung_this_round = 0");
@@ -124,8 +133,7 @@ void RotationFairnessEngine::advanceRound() {
 }
 
 QString RotationFairnessEngine::checkRoundViolation(int singerId) const {
-    Settings settings;
-    if (!settings.fairnessEnabled() || !settings.fairnessEnforceRound())
+    if (!m_settings.fairnessEnabled() || !m_settings.fairnessEnforceRound())
         return {};
     if (!hasSungThisRound(singerId))
         return {};
@@ -146,8 +154,7 @@ int RotationFairnessEngine::singersPendingThisRound() const {
 }
 
 RotationFairnessEngine::SongPlayedTonightResult RotationFairnessEngine::checkSongPlayedTonight(int songId) const {
-    Settings settings;
-    if (!settings.fairnessEnabled() || !settings.fairnessEnforceSongNight())
+    if (!m_settings.fairnessEnabled() || !m_settings.fairnessEnforceSongNight())
         return {false, {}};
     const QString canonicalKey = canonicalSongKeyForSongId(songId);
     QSqlQuery q;

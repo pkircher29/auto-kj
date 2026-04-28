@@ -1518,7 +1518,8 @@ void MainWindow::dbInit(const QDir &okjDataDir) {
     query.exec(
             "CREATE TABLE IF NOT EXISTS bmplsongs ( plsongid INTEGER PRIMARY KEY AUTOINCREMENT, playlist INT, position INT, Artist INT, Title INT, Filename INT, Duration INT, path INT)");
     query.exec("CREATE TABLE IF NOT EXISTS bmsrcdirs ( path NOT NULL)");
-    query.exec("PRAGMA synchronous=OFF");
+    query.exec("PRAGMA synchronous=NORMAL");
+    query.exec("PRAGMA journal_mode=WAL");
     query.exec("PRAGMA cache_size=300000");
     query.exec("PRAGMA temp_store=2");
 

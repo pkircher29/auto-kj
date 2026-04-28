@@ -172,7 +172,7 @@ private:
     QCheckBox *m_checkBoxAcceptingRequests{nullptr};
     QToolButton *m_btnEndShow{nullptr};
     QToolBar *m_venueTb{nullptr};
-    RotationFairnessEngine m_fairnessEngine{m_rotModel, this};
+    RotationFairnessEngine m_fairnessEngine{m_rotModel, m_settings, this};
     AutoBackupManager *m_autoBackupManager{nullptr};
     QWidget *m_historyTabWidget;
     std::mt19937_64 rng;

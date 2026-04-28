@@ -5,11 +5,12 @@
 #include <QString>
 #include <QStringList>
 #include "models/tablemodelrotation.h"
+#include "settings.h"
 
 class RotationFairnessEngine : public QObject {
     Q_OBJECT
 public:
-    explicit RotationFairnessEngine(TableModelRotation &rotModel, QObject *parent = nullptr);
+    explicit RotationFairnessEngine(TableModelRotation &rotModel, Settings &settings, QObject *parent = nullptr);
 
     struct SongPlayedTonightResult {
         bool blocked;
@@ -49,6 +50,7 @@ public:
 
 private:
     TableModelRotation &m_rotModel;
+    Settings &m_settings;
     [[nodiscard]] QString canonicalSongKeyForSongId(int songId) const;
 
     // Mark a singer as having sung this round
