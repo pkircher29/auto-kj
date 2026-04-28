@@ -2408,12 +2408,12 @@ void MainWindow::karaokeMediaBackend_stateChanged(const MediaBackend::State &sta
                     cdgWindow->setCountdownSecs(m_settings.karaokeAATimeout());
                     cdgWindow->showAlert(true);
                 }
+                // If rotation is empty and break music is enabled, start playing
+                if (empty && m_settings.breakMusicEnabled()) {
+                    m_logger->info("{} Rotation empty - starting break music", m_loggingPrefix);
+                    playBreakMusic();
+                }
             }
-        }
-        // If rotation is empty and break music is enabled, start playing
-        if (empty && m_settings.breakMusicEnabled()) {
-            m_logger->info("{} Rotation empty - starting break music", m_loggingPrefix);
-            playBreakMusic();
         }
         if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
             m_rotModel.singerMove(0, static_cast<int>(m_rotModel.singerCount() - 1));
