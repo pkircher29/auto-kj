@@ -74,7 +74,7 @@ void DlgAddVenue::setVenueCoordinates(double lat, double lon)
 void DlgAddVenue::onMapReady()
 {
     m_mapReady = true;
-    if (m_pendingPin) {
+    if (m_pendingCoords) {
         pushCoordinatesToMap(15);
         m_pendingCoords = false;
     }

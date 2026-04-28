@@ -52,6 +52,7 @@ private slots:
     void on_btnCreate_clicked();
     void on_btnCancel_clicked();
     void on_btnFindOnMap_clicked();
+    void on_btnClearCoords_clicked();
 
     void onMapReady();
     void onMapClicked(double lat, double lon);
