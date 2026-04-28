@@ -1,78 +1,58 @@
-<#
-.SYNOPSIS
-    Setup AutoKJ development environment on a bare Windows (Tiny11) VM.
-    Run as Administrator.
-
-.DESCRIPTION
-    Installs everything needed to build and run Auto-KJ desktop app:
-    - Chocolatey package manager
-    - Visual Studio 2022 Build Tools (MSVC)
-    - Qt 5.15.2 (via aqtinstall)
-    - GStreamer SDK
-    - OpenSSL 1.1
-    - CMake, Git, Inno Setup
-    - Opens SSH (OpenSSH server for remote access)
-    - Clones the repo and configures the build
-#>
+# AutoKJ Windows VM Setup Script - Run as Administrator
+# Installs everything needed to build and run Auto-KJ on a bare Tiny11 install
 
 $ErrorActionPreference = "Stop"
 
-# ── Helper ────────────────────────────────────────────────────────────────
 function Write-Step($msg) {
     Write-Host "`n=== $msg ===" -ForegroundColor Cyan
 }
 
-function Install-IfMissing($chocoPkg) {
-    if (!(Get-Command $chocoPkg -ErrorAction SilentlyContinue)) {
-        choco install $chocoPkg -y --no-progress
-    }
-}
-
-# ── 1. Chocolatey ────────────────────────────────────────────────────────
+# 1. Chocolatey
 Write-Step "Installing Chocolatey"
 if (!(Get-Command choco -ErrorAction SilentlyContinue)) {
     Set-ExecutionPolicy Bypass -Scope Process -Force
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
     Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-    refreshenv 2>$null; $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+    refreshenv 2>$null
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
 } else {
     Write-Host "Chocolatey already installed"
 }
 
-# ── 2. Core tools via Chocolatey ──────────────────────────────────────────
+# 2. Core tools via Chocolatey
 Write-Step "Installing core tools (git, cmake, python, innosetup)"
 choco install git -y --no-progress
 choco install cmake -y --no-progress --installargs '"ADD_CMAKE_TO_PATH=System"'
 choco install python -y --no-progress
 choco install innosetup -y --no-progress
 choco install 7zip -y --no-progress
-refreshenv 2>$null; $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+refreshenv 2>$null
+$env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
 
-# ── 3. Visual Studio 2022 Build Tools ─────────────────────────────────────
+# 3. Visual Studio 2022 Build Tools
 Write-Step "Installing Visual Studio 2022 Build Tools (MSVC)"
 if (!(Test-Path "C:\Program Files\Microsoft Visual Studio\2022\BuildTools")) {
     choco install visualstudio2022buildtools -y --no-progress
-    choco install visualstudio2022-workload-vctools -y --no-progress `
-        --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22634 --passive"
+    choco install visualstudio2022-workload-vctools -y --no-progress --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22634 --passive"
 } else {
     Write-Host "VS Build Tools already installed"
 }
 
-# ── 4. Qt 5.15.2 via aqtinstall ───────────────────────────────────────────
+# 4. Qt 5.15.2 via aqtinstall
 Write-Step "Installing Qt 5.15.2"
 $QtDir = "C:\Qt\5.15.2\msvc2019_64"
 if (!(Test-Path $QtDir)) {
     pip install aqtinstall --quiet
     aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -m qtwebengine -O C:\Qt
     if (!(Test-Path $QtDir)) {
-        throw "Qt installation failed — $QtDir not found"
+        throw "Qt installation failed - $QtDir not found"
     }
 } else {
     Write-Host "Qt already installed at $QtDir"
 }
 $env:Qt5_DIR = "$QtDir\lib\cmake\Qt5"
 
-# ── 5. GStreamer SDK ──────────────────────────────────────────────────────
+# 5. GStreamer SDK
 Write-Step "Installing GStreamer SDK"
 $GstDir = "C:\gstreamer-sdk"
 if (!(Test-Path "$GstDir\bin")) {
@@ -89,10 +69,10 @@ if (!(Test-Path "$GstDir\bin")) {
 }
 $env:GST_BASE_PATH = $GstDir
 
-# ── 6. OpenSSL 1.1 ────────────────────────────────────────────────────────
+# 6. OpenSSL 1.1
 Write-Step "Installing OpenSSL 1.1"
-$sslExe = Get-ChildItem -Path "C:\Program Files\OpenSSL*" -Filter "openssl.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-if (!$sslExe) {
+$sslDll = Get-ChildItem -Path "C:\Program Files\OpenSSL*" -Filter "libssl-1_1-x64.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if (!$sslDll) {
     $url = "https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe"
     $installer = "$env:TEMP\Win64OpenSSL-1_1_1w.exe"
     curl.exe -L --retry 3 -o $installer $url
@@ -104,7 +84,7 @@ if (!$sslExe) {
     Write-Host "OpenSSL already installed"
 }
 
-# ── 7. spdlog ─────────────────────────────────────────────────────────────
+# 7. spdlog
 Write-Step "Installing spdlog"
 $SpdlogDir = "C:\spdlog"
 if (!(Test-Path "$SpdlogDir\include\spdlog\spdlog.h")) {
@@ -116,7 +96,7 @@ if (!(Test-Path "$SpdlogDir\include\spdlog\spdlog.h")) {
     Write-Host "spdlog already installed"
 }
 
-# ── 8. Clone repo ─────────────────────────────────────────────────────────
+# 8. Clone repo
 Write-Step "Cloning auto-kj repo"
 $RepoDir = "C:\auto-kj"
 if (!(Test-Path $RepoDir)) {
@@ -128,10 +108,10 @@ if (!(Test-Path $RepoDir)) {
     Pop-Location
 }
 
-# ── 9. Configure build ────────────────────────────────────────────────────
+# 9. Configure build
 Write-Step "Configuring CMake build"
 $BuildDir = "$RepoDir\build"
-if (!(Test-Path $BuildDir)) {
+if (!(Test-Path "$BuildDir\CMakeCache.txt")) {
     Push-Location $RepoDir
 
     # Setup MSVC environment
@@ -153,29 +133,28 @@ if (!(Test-Path $BuildDir)) {
     Write-Host "Build already configured at $BuildDir"
 }
 
-# ── 10. Build ─────────────────────────────────────────────────────────────
+# 10. Build
 Write-Step "Building Auto-KJ (Release)"
 Push-Location $RepoDir
 cmake --build $BuildDir --config Release --parallel
 Pop-Location
 
 if (Test-Path "$BuildDir\Release\auto-kj.exe") {
-    Write-Host "`n✅ BUILD SUCCESSFUL" -ForegroundColor Green
+    Write-Host "`nBUILD SUCCESSFUL" -ForegroundColor Green
     Write-Host "Executable: $BuildDir\Release\auto-kj.exe"
 } else {
-    Write-Host "`n⚠️  Build completed but auto-kj.exe not found" -ForegroundColor Yellow
+    Write-Host "`nBuild completed but auto-kj.exe not found" -ForegroundColor Yellow
     Write-Host "Check build output above for errors"
 }
 
-# ── 11. Enable SSH for remote access ─────────────────────────────────────
-Write-Step "Enabling OpenSSH Server"
+# 11. Enable SSH
+Write-Step "Ensuring OpenSSH Server is running"
 $sshdService = Get-Service sshd -ErrorAction SilentlyContinue
 if (!$sshdService) {
-    # Install OpenSSH
     Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
     Start-Service sshd
     Set-Service -Name sshd -StartupType Automatic
-    Write-Host "SSH server installed and started on port 22"
+    Write-Host "SSH server installed and started"
 } elseif ($sshdService.Status -ne "Running") {
     Start-Service sshd
     Write-Host "SSH server started"
@@ -183,22 +162,25 @@ if (!$sshdService) {
     Write-Host "SSH server already running"
 }
 
-# ── 12. Enable RDP ────────────────────────────────────────────────────────
+# 12. Enable RDP
 Write-Step "Enabling RDP"
 Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
-Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-Write-Host "RDP enabled"
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop" -ErrorAction SilentlyContinue
+New-NetFirewallRule -DisplayName "SSH-In" -Direction Inbound -Protocol TCP -LocalPort 22 -Action Allow -ErrorAction SilentlyContinue | Out-Null
+Write-Host "RDP and SSH firewall rules configured"
 
-# ── 13. Set persistent environment variables ──────────────────────────────
+# 13. Set persistent environment variables
 Write-Step "Setting environment variables"
 [System.Environment]::SetEnvironmentVariable("Qt5_DIR", "$QtDir\lib\cmake\Qt5", "Machine")
 [System.Environment]::SetEnvironmentVariable("GST_BASE_PATH", $GstDir, "Machine")
-[System.Environment]::SetEnvironmentVariable("PATH", "$GstDir\bin;$QtDir\bin;" + [System.Environment]::GetEnvironmentVariable("PATH","Machine"), "Machine")
+$env:PATH = "$GstDir\bin;$QtDir\bin;" + [System.Environment]::GetEnvironmentVariable("PATH","Machine")
+[System.Environment]::SetEnvironmentVariable("PATH", $env:PATH, "Machine")
 
-# ── Summary ───────────────────────────────────────────────────────────────
-Write-Host "`n═══════════════════════════════════════════════" -ForegroundColor Green
+# Summary
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Green
 Write-Host "  AutoKJ VM Setup Complete!" -ForegroundColor Green
-Write-Host "═══════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Installed:"
 Write-Host "  - Visual Studio 2022 Build Tools (MSVC)"
@@ -218,9 +200,3 @@ Write-Host ""
 Write-Host "To rebuild later:"
 Write-Host "  cd $RepoDir"
 Write-Host "  cmake --build $BuildDir --config Release --parallel"
-Write-Host ""
-
-# ── Firewall rule for Lisa access ─────────────────────────────────────────
-Write-Step "Opening firewall for SSH and RDP"
-New-NetFirewallRule -DisplayName "SSH-In" -Direction Inbound -Protocol TCP -LocalPort 22 -Action Allow -ErrorAction SilentlyContinue
-New-NetFirewallRule -DisplayName "RDP-In" -Direction Inbound -Protocol TCP -LocalPort 3389 -Action Allow -ErrorAction SilentlyContinue
