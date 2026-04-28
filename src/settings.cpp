@@ -1381,6 +1381,28 @@ void Settings::setRecordingRawExtension(QString extension)
     settings->setValue("recordingRawExtension", extension);
 }
 
+// ═══ Break Music ═══
+
+QString Settings::breakMusicDir()
+{
+    return settings->value("breakMusicDir", QString()).toString();
+}
+
+void Settings::setBreakMusicDir(QString dir)
+{
+    settings->setValue("breakMusicDir", dir);
+}
+
+bool Settings::breakMusicEnabled()
+{
+    return settings->value("breakMusicEnabled", false).toBool();
+}
+
+void Settings::setBreakMusicEnabled(bool enabled)
+{
+    settings->setValue("breakMusicEnabled", enabled);
+}
+
 void Settings::setCdgOffsetTop(int pixels)
 {
     settings->setValue("cdgOffsetTop", pixels);

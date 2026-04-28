@@ -93,6 +93,7 @@ private:
     bool m_kNeedAutoSize{false};
     bool m_bNeedAutoSize{true};
     bool m_testMode{false};
+    bool m_breakMusicPlaying{false};
     int m_rtClickQueueSongId{-1};
     int m_rtClickRotationSingerId{-1};
     int m_curSingerOriginalPosition{0};
@@ -188,6 +189,8 @@ private:
     void addSfxButton(const QString &filename, const QString &label, bool reset = false);
     void refreshSfxButtons();
     void updateEndShowButtonState();
+    void playBreakMusic();
+    void stopBreakMusic();
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);

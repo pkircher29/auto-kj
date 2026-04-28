@@ -243,6 +243,12 @@ public:
     bool recordingEnabled();
     void setRecordingEnabled(bool enabled);
     QString recordingRawExtension();
+    void setRecordingRawExtension(QString ext);
+    // Break music (filler between singers)
+    QString breakMusicDir();
+    void setBreakMusicDir(QString dir);
+    bool breakMusicEnabled();
+    void setBreakMusicEnabled(bool enabled);
     void setRecordingRawExtension(QString extension);
     int cdgOffsetTop();
     int cdgOffsetBottom();

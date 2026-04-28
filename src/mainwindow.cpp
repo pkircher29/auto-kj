@@ -40,6 +40,7 @@
 #include "dlgaddsong.h"
 #include "dlgaddvenue.h"
 #include <QGraphicsBlurEffect>
+#include <QRandomGenerator>
 #include <spdlog/version.h>
 #include <taglib.h>
 #include <miniz/miniz.h>
@@ -2409,6 +2410,11 @@ void MainWindow::karaokeMediaBackend_stateChanged(const MediaBackend::State &sta
                 }
             }
         }
+        // If rotation is empty and break music is enabled, start playing
+        if (empty && m_settings.breakMusicEnabled()) {
+            m_logger->info("{} Rotation empty - starting break music", m_loggingPrefix);
+            playBreakMusic();
+        }
         if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
             m_rotModel.singerMove(0, static_cast<int>(m_rotModel.singerCount() - 1));
             m_rotModel.setCurrentSinger(-1);
@@ -2492,6 +2498,24 @@ void MainWindow::rotationDataChanged() {
     if (m_shuttingDown)
         return;
     m_logger->trace("{} [{}] Called", m_loggingPrefix, __func__);
+    
+    // Stop break music if rotation is no longer empty
+    if (m_breakMusicPlaying && m_rotModel.singerCount() > 0) {
+        // Check if any singer has a queued song
+        bool hasQueuedSongs = false;
+        for (size_t i = 0; i < m_rotModel.singerCount(); i++) {
+            const auto singer = m_rotModel.getSingerAtPosition(static_cast<int>(i));
+            if (!singer.nextSongPath().isEmpty()) {
+                hasQueuedSongs = true;
+                break;
+            }
+        }
+        if (hasQueuedSongs) {
+            m_logger->info("{} Rotation has queued songs - stopping break music", m_loggingPrefix);
+            stopBreakMusic();
+        }
+    }
+    
     auto st = std::chrono::high_resolution_clock::now();
     if (m_settings.rotationShowNextSong())
         autosizeRotationCols();
@@ -5082,3 +5106,50 @@ void MainWindow::showManageVenuesGigsDialog() {
     dlg.exec();
 }
 
+
+// ═══ Break Music ═══
+
+void MainWindow::playBreakMusic()
+{
+    if (!m_settings.breakMusicEnabled())
+        return;
+    
+    const QString breakDir = m_settings.breakMusicDir();
+    if (breakDir.isEmpty() || !QDir(breakDir).exists()) {
+        m_logger->warn("{} Break music enabled but directory not set or doesn't exist: {}", m_loggingPrefix, breakDir.toStdString());
+        return;
+    }
+    
+    // Get list of audio files
+    QDir dir(breakDir);
+    QStringList filters;
+    filters << "*.mp3" << "*.wav" << "*.flac" << "*.m4a" << "*.ogg";
+    dir.setNameFilters(filters);
+    dir.setFilter(QDir::Files);
+    
+    const auto files = dir.entryList();
+    if (files.isEmpty()) {
+        m_logger->warn("{} Break music directory is empty: {}", m_loggingPrefix, breakDir.toStdString());
+        return;
+    }
+    
+    // Pick random file
+    const int randomIndex = QRandomGenerator::global()->bounded(files.size());
+    const QString selectedFile = dir.filePath(files[randomIndex]);
+    
+    m_logger->info("{} Playing break music: {}", m_loggingPrefix, selectedFile.toStdString());
+    
+    m_mediaBackendBm.setMedia(selectedFile);
+    m_mediaBackendBm.play();
+    m_breakMusicPlaying = true;
+}
+
+void MainWindow::stopBreakMusic()
+{
+    if (!m_breakMusicPlaying)
+        return;
+    
+    m_logger->info("{} Stopping break music", m_loggingPrefix);
+    m_mediaBackendBm.stop(true);
+    m_breakMusicPlaying = false;
+}
