@@ -2105,14 +2105,7 @@ void Settings::setVenueGeofenceEnabled(bool enabled) {
     emit venueConfigChanged();
 }
 
-QString Settings::kjPin() const {
-    return settings->value("kjPin", "1234").toString();
-}
-
-void Settings::setKjPin(const QString &pin) {
-    settings->setValue("kjPin", pin);
-    emit venueConfigChanged();
-}
+// KJ PIN removed — singers find venues via nearby/QR/slug, not a numeric code
 
 bool Settings::blockRepeatSongs() const {
     return settings->value(djKey("blockRepeatSongs"), true).toBool();

@@ -76,7 +76,7 @@ public:
     void refreshVenues() override;
 
     /** Create a new venue via the API */
-    void createVenue(const QString &name, const QString &address, const QString &pin) override;
+    void createVenue(const QString &name, const QString &address) override;
 
     /** Start a new active show (gig) for the selected venue. */
     void startNewShow() override;

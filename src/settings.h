@@ -180,7 +180,7 @@ public:
     double venueLon() const;
     double venueGeofenceRadius() const;
     bool venueGeofenceEnabled() const;
-    QString kjPin() const;
+    // kjPin() removed — use venue slug or geolocation instead
     // Gig settings
     bool blockRepeatSongs() const;
     bool limitOneSongPerSinger() const;
@@ -456,7 +456,7 @@ public slots:
     void setVenueLon(double lon);
     void setVenueLat(double lat);
     void setVenueAddress(const QString &address);
-    void setKjPin(const QString &pin);
+    // KJ PIN removed — singers use nearby/QR/slug to find venues
 
     // Internal helper for DJ-specific settings
     QString djKey(const QString &baseKey) const;

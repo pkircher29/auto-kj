@@ -64,7 +64,7 @@ public:
 
     virtual void refreshRequests() {}
     virtual void refreshVenues() = 0;
-    virtual void createVenue(const QString &name, const QString &address, const QString &pin) = 0;
+    virtual void createVenue(const QString &name, const QString &address) = 0;
     virtual void startNewShow() = 0;
     virtual void endActiveShow() = 0;
     virtual void triggerTestAdd() {}

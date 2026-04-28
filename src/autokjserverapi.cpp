@@ -257,7 +257,6 @@ void AutoKJServerAPI::authenticate()
     data["geofence_radius_miles"] = m_settings.venueGeofenceRadius();
     data["geofence_enabled"] = m_settings.venueGeofenceEnabled();
     data["address"] = m_settings.venueAddress();
-    data["kj_pin"] = m_settings.kjPin();
 
     sendEvent("kj:authenticate", data);
 }
@@ -284,7 +283,6 @@ void AutoKJServerAPI::pushVenueConfig()
     data["geofence_radius_miles"] = m_settings.venueGeofenceRadius();
     data["geofence_enabled"] = m_settings.venueGeofenceEnabled();
     data["address"] = m_settings.venueAddress();
-    data["kj_pin"] = m_settings.kjPin();
     sendEvent("kj:venue_config", data);
 }
 
@@ -1366,10 +1364,10 @@ void AutoKJServerAPI::markCheckinAdded(const QString &checkinId)
     sendEvent("kj:checkin_added", {{"checkinId", checkinId}});
 }
 
-void AutoKJServerAPI::createVenue(const QString &name, const QString &address, const QString &pin)
+void AutoKJServerAPI::createVenue(const QString &name, const QString &address)
 {
     ensureTokenAsync(
-        [this, name, address, pin](const QString &token) {
+        [this, name, address](const QString &token) {
             if (token.isEmpty()) {
                 emit testFailed("Venue creation failed: Missing authentication.");
                 return;
@@ -1382,7 +1380,6 @@ void AutoKJServerAPI::createVenue(const QString &name, const QString &address, c
             QJsonObject obj;
             obj["name"] = name;
             obj["address"] = address;
-            obj["kj_pin"] = pin;
 
             QNetworkReply *reply = m_nam->post(request, QJsonDocument(obj).toJson());
             connect(reply, &QNetworkReply::finished, this, [this, reply]() {

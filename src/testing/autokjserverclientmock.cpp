@@ -104,10 +104,9 @@ void AutoKJServerClientMock::refreshVenues()
     emit venuesChanged(m_venues);
 }
 
-void AutoKJServerClientMock::createVenue(const QString &name, const QString &address, const QString &pin)
+void AutoKJServerClientMock::createVenue(const QString &name, const QString &address)
 {
     Q_UNUSED(address)
-    Q_UNUSED(pin)
     OkjsVenue venue;
     venue.venueId = m_venues.size() + 1;
     venue.name = name;

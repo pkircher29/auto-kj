@@ -1354,14 +1354,13 @@ void MainWindow::onVenuesChanged(const OkjsVenues &venues) {
             if (dlg.exec() == QDialog::Accepted) {
                 QString name = dlg.venueName();
                 QString address = dlg.venueAddress();
-                QString pin = dlg.venuePin();
 
                 if (name.isEmpty()) {
                     QMessageBox::warning(this, "Input Required", "Venue name is required.");
                     continue;
                 }
 
-                m_songbookApi.createVenue(name, address, pin);
+                m_songbookApi.createVenue(name, address);
                 success = true;
             } else {
                 QMessageBox::StandardButton res = QMessageBox::question(this, "Setup Required",

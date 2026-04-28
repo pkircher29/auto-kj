@@ -1028,7 +1028,7 @@ void DlgSettings::reqSvrTestError(QString error) {
             DlgAddVenue dlg(this);
             dlg.setWindowTitle("Create Your First Venue");
             if (dlg.exec() == QDialog::Accepted) {
-                songbookApi.createVenue(dlg.venueName(), dlg.venueAddress(), dlg.venuePin());
+                songbookApi.createVenue(dlg.venueName(), dlg.venueAddress());
                 QMessageBox::information(this, "Venue Setup",
                                          "Venue created. Run the connection test again.");
             }
