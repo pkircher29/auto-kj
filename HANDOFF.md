@@ -16,36 +16,36 @@ Ship a stable Windows desktop build, verify the GitHub Windows artifact pipeline
 - `master`
 
 ## Latest safe commit
-- `6f1785cd` — fix: bundle GStreamer plugins, libexec, and GIO modules in Windows release
+- `a01b7a8e` — docs: clarify Auto-KJ uses Qt Widgets, no separate frontend
 
 ## Current status
-- **Windows build was GREEN** ✅ (run `24900979790`) — but missing GStreamer plugins
-- **New build in progress** (run `24912108249`) with GStreamer plugins fix
-- Linux build is GREEN ✅
-- macOS build still queued/running
-- Multi-platform CI workflow now exists alongside Windows-only workflow
-- Roger shipped: release readiness cleanup, subscription tier in settings, auth header split, web dashboard command wiring, install guide
-- Lisa fixed: merge conflict markers, missing Qt modules, missing GStreamer plugins + env vars
+- **RELEASE SHIPPED** — **v1.0.0-beta4** is live on GitHub
+- Windows installer + portable artifacts attached (built from commit a01b7a8e)
+- Release page: https://github.com/pkircher29/auto-kj/releases/tag/v1.0.0-beta4
+- Singer App Phase 4 (Neon Stage, Discover, Setlist, Recordings, reactions, duets, venue presence) — deployed to VPS
+- Auto-KJ website (auto-kj.com) — LIVE with Stripe checkout
+- License server (api.auto-kj.com) — LIVE with Stripe webhook integration
+- VPS currently unreachable (SSH timeout) — may need Paul to check/restart
 
 ## Doing now
-- [ ] Verify new build `24912108249` includes GStreamer plugins in artifact
-- [ ] If green, confirm `lib/gstreamer-1.0/` exists in portable zip
-- [ ] Paul: tag/release decision once plugins verified
-- [ ] Lisa: continue autokj-pro playback backend work
+- [x] Trigger Windows build on master (run 188 — GREEN)
+- [x] Create v1.0.0-beta4 tag + GitHub release
+- [x] Upload installer + portable artifacts
+- [x] Update HANDOFF.md and TASKS.md
 
 ## Blocked
-- None currently (pending build verification)
+- VPS is unreachable from this server (SSH connection timeout)
+  - Cannot currently re-deploy singer app or verify services
+  - Paul may need to check VPS status or provide alternative access
 
 ## Next
-- [ ] Paul: tag/release decision — builds are green, plugins now bundled
-- [ ] Lisa: autokj-pro playback worker
-- [ ] Roger: macOS CI if it fails, release automation improvements
+- [ ] Deploy latest auto-kj-server code to VPS when it's reachable
+- [ ] Update auto-kj-website on VPS with latest build if needed
+- [ ] Continue autokj-pro work (Phase 1 core — playback pipeline, song scanner, CDG rendering)
+- [ ] Set up email for paul@kircherentertainment.com for contact
 
 ## Handoff notes
-- **2026-04-20 10:43 UTC** — Lisa fixed Roger's accidental merge conflict markers in `autokjserverapi.cpp` and added missing Qt modules.
-- **2026-04-21 11:03 UTC** — Lisa pivoting to autokj-pro. Windows build running with qtwebchannel via `extra` param.
-- **2026-04-24 19:22 UTC** — Lisa synced to `9b4cb8a1`. Windows + Linux builds are GREEN. Roger shipped significant cleanup work.
-- **2026-04-24 21:12 UTC** — Lisa found GStreamer plugins were missing from Windows bundle. Fixed CI to copy `lib/gstreamer-1.0/`, `libexec/`, `lib/gio/modules/`. Added `GST_PLUGIN_SYSTEM_PATH` env var in `main.cpp` for Windows. Build `24912108249` in progress.
+- **2026-04-29 14:46 UTC** — Roger: v1.0.0-beta4 released. Windows build 188 (run 25115154263) GREEN on master (a01b7a8e). Artifacts: Auto-KJ-Windows-x64-Setup.exe (119MB) and Auto-KJ-Windows-x64.zip (161MB). VPS unreachable — service health unknown.
 
 ## Handoff rules
 1. Update this file before switching context
@@ -53,17 +53,3 @@ Ship a stable Windows desktop build, verify the GitHub Windows artifact pipeline
 3. Keep notes short and factual
 4. If a release or deploy happened, record what changed and how to roll back
 5. Never say "it should be fine" when a concrete status is available
-
-## Handoff template
-```md
-### Handoff note
-- Time:
-- Owner handing off:
-- Branch:
-- Safe commit:
-- What changed:
-- What is verified:
-- What is unverified:
-- Next recommended action:
-- Blockers:
-```
