@@ -18,13 +18,17 @@ project(auto-kj
         LANGUAGES CXX C
         )
 
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.14)
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.14)
+endif ()
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
@@ -32,6 +36,7 @@ find_package(QT NAMES Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Sql Network WebSockets Widgets Concurrent Svg PrintSupport WebChannel WebEngineWidgets REQUIRED)
 
 include(FetchContent)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 
 option(AUTOKJ_USE_QTKEYCHAIN "Use QtKeychain for secure request-server credential storage" ON)
 if (AUTOKJ_USE_QTKEYCHAIN)
@@ -506,6 +511,7 @@ set(SOURCE_FILES
         src/dlgregularimport.cpp
         src/dlgregularsingers.cpp
         src/dlgregister.cpp
+        src/dlgforgotpassword.cpp
         src/dlgsettings.cpp
         src/dlgcdg.cpp
         src/okarchive.cpp
@@ -579,6 +585,7 @@ set(SOURCE_FILES
         src/dlgregularimport.h
         src/dlgregularsingers.h
         src/dlgregister.h
+        src/dlgforgotpassword.h
         src/dlgsettings.h
         src/dlgcdg.h
         src/okarchive.h
@@ -641,6 +648,7 @@ set(SOURCE_FILES
         src/dlgregularimport.ui
         src/dlgregularsingers.ui
         src/dlgregister.ui
+        src/dlgforgotpassword.ui
         src/dlgsettings.ui
         src/dlgcdg.ui
         src/bmdbdialog.ui
@@ -873,6 +881,25 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
             TARGET auto-kj
             PROPERTY WIN32_EXECUTABLE true
     )
+
+    function(autokj_copy_shared_dep_dll app_target dep_target)
+        if (TARGET ${dep_target})
+            get_target_property(dep_type ${dep_target} TYPE)
+            if (dep_type STREQUAL "SHARED_LIBRARY" OR dep_type STREQUAL "MODULE_LIBRARY")
+                add_custom_command(
+                        TARGET ${app_target}
+                        POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                                "$<TARGET_FILE:${dep_target}>"
+                                "$<TARGET_FILE_DIR:${app_target}>"
+                )
+                message(STATUS "Windows deploy: will copy shared dependency ${dep_target}")
+            endif ()
+        endif ()
+    endfunction()
+
+    autokj_copy_shared_dep_dll(auto-kj qrencode)
+    autokj_copy_shared_dep_dll(auto-kj spdlog)
 
     if (DEPLOY_DEPS)
         get_target_property(_qt5_qmake_location Qt5::qmake IMPORTED_LOCATION)

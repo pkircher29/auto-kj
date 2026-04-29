@@ -94,6 +94,7 @@ public:
     [[nodiscard]] bool singerExists(const QString &name) const;
     [[nodiscard]] QStringList singers() const;
     [[nodiscard]] int singerTurnDistance(int singerId) const;
+    [[nodiscard]] int rotationTopSingerId() const { return m_rotationTopSingerId; }
     void loadData();
     void commitChanges();
     int singerAdd(const QString& name, int positionHint = ADD_BOTTOM);

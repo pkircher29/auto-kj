@@ -346,7 +346,6 @@ void DlgManageVenuesGigs::loadVenues()
         auto *item = new QListWidgetItem(label, m_venueList);
         item->setData(Qt::UserRole, id);
         item->setData(Qt::UserRole + 1, address);
-        item->setData(Qt::UserRole + 2, obj.value("kj_pin").toString());
         const QJsonValue latVal = obj.value("lat");
         const QJsonValue lonVal = obj.value("lon");
         item->setData(Qt::UserRole + 3, latVal.isDouble() ? latVal.toDouble() : QVariant());
@@ -396,7 +395,6 @@ void DlgManageVenuesGigs::addVenue()
     QJsonObject payload;
     payload["name"] = dlg.venueName();
     payload["address"] = dlg.venueAddress();
-    payload["kj_pin"] = dlg.venuePin().isEmpty() ? "1234" : dlg.venuePin();
     if (dlg.hasCoordinates()) {
         payload["lat"] = dlg.venueLat();
         payload["lon"] = dlg.venueLon();
@@ -424,14 +422,12 @@ void DlgManageVenuesGigs::editVenue()
     const int venueId = item->data(Qt::UserRole).toInt();
     const QString oldName = item->text().replace("  [Active]", "");
     const QString oldAddress = item->data(Qt::UserRole + 1).toString();
-    const QString oldPin = item->data(Qt::UserRole + 2).toString();
 
     DlgAddVenue dlg(this);
     dlg.setWindowTitle("Edit Venue");
     dlg.setSubmitButtonText("Save Venue");
     dlg.setVenueName(oldName);
     dlg.setVenueAddress(oldAddress);
-    dlg.setVenuePin(oldPin);
     const QVariant oldLat = item->data(Qt::UserRole + 3);
     const QVariant oldLon = item->data(Qt::UserRole + 4);
     if (oldLat.isValid() && oldLon.isValid())
@@ -442,7 +438,6 @@ void DlgManageVenuesGigs::editVenue()
     QJsonObject payload;
     payload["name"] = dlg.venueName();
     payload["address"] = dlg.venueAddress();
-    payload["kj_pin"] = dlg.venuePin().isEmpty() ? "1234" : dlg.venuePin();
     if (dlg.hasCoordinates()) {
         payload["lat"] = dlg.venueLat();
         payload["lon"] = dlg.venueLon();

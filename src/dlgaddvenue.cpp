@@ -23,7 +23,6 @@ DlgAddVenue::DlgAddVenue(QWidget *parent) :
     ui->setupUi(this);
     ui->lineEditName->setMinimumWidth(320);
     ui->lineEditAddress->setMinimumWidth(280);
-    ui->lineEditPin->setMinimumWidth(320);
     setMinimumWidth(620);
 
     // Build the embedded map and bridge.
@@ -54,14 +53,12 @@ DlgAddVenue::~DlgAddVenue()
 
 QString DlgAddVenue::venueName()    const { return ui->lineEditName->text().trimmed(); }
 QString DlgAddVenue::venueAddress() const { return ui->lineEditAddress->text().trimmed(); }
-QString DlgAddVenue::venuePin()     const { return ui->lineEditPin->text().trimmed(); }
 double  DlgAddVenue::venueLat()     const { return m_hasCoords ? m_lat : std::nan(""); }
 double  DlgAddVenue::venueLon()     const { return m_hasCoords ? m_lon : std::nan(""); }
 bool    DlgAddVenue::hasCoordinates() const { return m_hasCoords; }
 
 void DlgAddVenue::setVenueName(const QString &name)       { ui->lineEditName->setText(name); }
 void DlgAddVenue::setVenueAddress(const QString &address) { ui->lineEditAddress->setText(address); }
-void DlgAddVenue::setVenuePin(const QString &pin)         { ui->lineEditPin->setText(pin); }
 void DlgAddVenue::setSubmitButtonText(const QString &t)   { ui->btnCreate->setText(t); }
 
 void DlgAddVenue::setVenueCoordinates(double lat, double lon)
@@ -71,15 +68,15 @@ void DlgAddVenue::setVenueCoordinates(double lat, double lon)
     m_hasCoords = true;
     updateLatLonLabel();
     if (m_mapReady) pushCoordinatesToMap(15);
-    else            m_pendingPin = true;
+    else            m_pendingCoords = true;
 }
 
 void DlgAddVenue::onMapReady()
 {
     m_mapReady = true;
-    if (m_pendingPin) {
+    if (m_pendingCoords) {
         pushCoordinatesToMap(15);
-        m_pendingPin = false;
+        m_pendingCoords = false;
     }
 }
 
@@ -157,11 +154,11 @@ void DlgAddVenue::on_btnFindOnMap_clicked()
         m_hasCoords = true;
         updateLatLonLabel();
         if (m_mapReady) pushCoordinatesToMap(16);
-        else            m_pendingPin = true;
+        else            m_pendingCoords = true;
     });
 }
 
-void DlgAddVenue::on_btnClearPin_clicked()
+void DlgAddVenue::on_btnClearCoords_clicked()
 {
     m_hasCoords = false;
     m_lat = m_lon = 0.0;

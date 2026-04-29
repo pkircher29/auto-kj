@@ -10,74 +10,158 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Qt 5.15.2
-        uses: jurplel/install-qt-action@v4
+        uses: jurplel/install-qt-action@v3
         with:
           version: '5.15.2'
+          host: 'windows'
+          target: 'desktop'
           arch: 'win64_msvc2019_64'
-          cache: true
+          modules: 'qtwebengine'
 
-      - name: Install Windows dependencies
+      - name: Install GStreamer SDK
         shell: powershell
         run: |
-          choco install gstreamer --yes --no-progress
-          choco install gstreamer-devel --yes --no-progress
+          $url = "https://github.com/pkircher29/gstreamer/releases/download/gst-sdk-1.26.9/gstreamer-sdk-1.26.9.zip"
+          curl.exe -L --retry 5 --retry-delay 3 -o gstreamer-sdk.zip $url
+          if (!(Test-Path "gstreamer-sdk.zip")) { throw "GStreamer SDK download failed" }
+          Expand-Archive -Path gstreamer-sdk.zip -DestinationPath "C:\gstreamer-sdk" -Force
+          if (!(Test-Path "C:\gstreamer-sdk\bin")) { throw "GStreamer SDK extract failed" }
+          echo "GST_BASE_PATH=C:\gstreamer-sdk" >> $env:GITHUB_ENV
+
+      - name: Install OpenSSL 1.1
+        shell: powershell
+        run: |
+          $url = "https://slproweb.com/download/Win64OpenSSL-1_1_1w.exe"
+          curl.exe -L --retry 3 -o openssl-installer.exe $url
+          Start-Process -FilePath openssl-installer.exe -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+          $sslDll = Get-ChildItem -Path "C:\Program Files\OpenSSL*\bin" -Filter "libssl-1_1-x64.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $sslDll) { throw "OpenSSL 1.1 DLLs not found after install" }
+          Write-Host "Found OpenSSL at: $($sslDll.DirectoryName)"
+          echo "OPENSSL_BIN=$($sslDll.DirectoryName)" >> $env:GITHUB_ENV
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: |
           choco install innosetup --yes --no-progress
 
-      - name: Detect Qt path
-        id: qt
-        shell: powershell
-        run: |
-          $windeployqt = (Get-Command windeployqt.exe -ErrorAction Stop).Source
-          $qtPath = Split-Path (Split-Path $windeployqt -Parent) -Parent
-          "path=$qtPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "QtPath=$qtPath"
-
-      - name: Detect GStreamer path
-        id: gst
-        shell: powershell
-        run: |
-          $candidates = @(
-            'C:\gstreamer\1.0\msvc_x86_64',
-            'C:\Program Files\gstreamer\1.0\msvc_x86_64'
-          )
-          $gstPath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $gstPath) {
-            throw 'GStreamer path not found after Chocolatey install.'
-          }
-          "path=$gstPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "GStreamerPath=$gstPath"
-
-      - name: Build staged Windows package
-        shell: powershell
-        run: |
-          .\package_windows.ps1 `
-            -Generator 'Visual Studio 17 2022' `
-            -Config 'Release' `
-            -QtPath '${{ steps.qt.outputs.path }}' `
-            -GStreamerPath '${{ steps.gst.outputs.path }}' `
-            -OutputDir 'dist'
-
-      - name: Archive artifact
-        shell: powershell
-        run: |
-          $artifactBase = "auto-kj-${{ github.event.inputs.version }}-windows-x64"
-          if (Test-Path 'cd\Output\Auto-KJ*.exe') {
-            Copy-Item 'cd\Output\Auto-KJ*.exe' '.' -Force
-          }
-          Compress-Archive -Path 'dist\*' -DestinationPath "$artifactBase.zip" -Force
-
-      - name: Upload staged artifact
-        uses: actions/upload-artifact@v4
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
         with:
-          name: auto-kj-${{ github.event.inputs.version }}-windows-x64
-          path: |
-            auto-kj-${{ github.event.inputs.version }}-windows-x64.zip
-            Auto-KJ*.exe
-          if-no-files-found: warn
+          arch: amd64
+
+      - name: Configure CMake
+        shell: powershell
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64 `
+            "-DDEPLOY_DEPS=OFF" `
+            "-DQT_INSTALL_PREFIX=$env:Qt5_DIR\..\..\.." `
+            "-DGST_BASE_PATH=$env:GST_BASE_PATH"
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Stage release bundle
+        shell: cmd
+        run: |
+          set releaseDir=build\Release
+          "%Qt5_Dir%\bin\windeployqt.exe" --release --no-translations "%releaseDir%\auto-kj.exe"
+          exit /b 0
+
+      - name: Collect runtime dependencies
+        shell: powershell
+        run: |
+          $releaseDir = "build\Release"
+
+          $gstBin = "$env:GST_BASE_PATH\bin"
+          Copy-Item "$gstBin\*.dll" -Destination $releaseDir -Force
+
+          $openSslNames = @(
+            "libssl-1_1-x64.dll",
+            "libcrypto-1_1-x64.dll"
+          )
+          $searchDirs = @(
+            "$env:Qt5_Dir\bin",
+            "$env:OPENSSL_BIN",
+            "C:\Program Files\OpenSSL-Win64\bin",
+            "C:\Program Files\OpenSSL\bin"
+          )
+
+          foreach ($dll in $openSslNames) {
+            $copied = $false
+            foreach ($dir in $searchDirs) {
+              $candidate = Join-Path $dir $dll
+              if (Test-Path $candidate) {
+                Copy-Item $candidate -Destination $releaseDir -Force
+                Write-Host "Collected $dll from $dir"
+                $copied = $true
+                break
+              }
+            }
+            if (-not $copied) {
+              throw "Missing required OpenSSL runtime DLL: $dll"
+            }
+          }
+
+          # Try VCToolsRedistDir first (set by ilammy/msvc-dev-cmd), then fall back to vswhere
+          $redistCopied = $false
+          if ($env:VCToolsRedistDir) {
+            $redist = Get-ChildItem -Path $env:VCToolsRedistDir -Filter "vc_redist.x64.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+            if ($redist) {
+              Copy-Item $redist -Destination $releaseDir -Force
+              Write-Host "Collected vc_redist.x64.exe from VCToolsRedistDir"
+              $redistCopied = $true
+            }
+          }
+          if (-not $redistCopied) {
+            $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+            if (Test-Path $vswhere) {
+              $installPath = & $vswhere -latest -products * -property installationPath
+              if ($installPath) {
+                $redist = Get-ChildItem -Path "$installPath\VC\Redist\MSVC" -Filter "vc_redist.x64.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+                if ($redist) {
+                  Copy-Item $redist -Destination $releaseDir -Force
+                  Write-Host "Collected vc_redist.x64.exe from vswhere"
+                  $redistCopied = $true
+                }
+              }
+            }
+          }
+          if (-not $redistCopied) {
+            $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+            Invoke-WebRequest -Uri $vcRedistUrl -OutFile "$releaseDir\vc_redist.x64.exe"
+            Write-Host "Downloaded vc_redist.x64.exe from Microsoft"
+          }
+
+          if (Test-Path "LICENSE") {
+            Copy-Item "LICENSE" "$releaseDir\LICENSE.txt" -Force
+          }
+
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Copy-Item "$releaseDir\*" -Destination "release\" -Recurse -Force
+          Compress-Archive -Path "release\*" -DestinationPath "Auto-KJ-Windows-x64.zip" -Force
+
+      - name: Build installer
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "cd\Output" | Out-Null
+          Copy-Item "release\*" -Destination "cd\Output\" -Recurse -Force
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "cd\auto-kj64.iss"
+
+      - name: Upload portable bundle artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: Auto-KJ-Windows-x64-portable
+          path: Auto-KJ-Windows-x64.zip
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: Auto-KJ-Windows-x64-installer
+          path: cd/Output/Auto-KJ-Windows-x64-Setup.exe

@@ -18,6 +18,65 @@ function Write-Step($msg) {
     Write-Host "`n>>> $msg" -ForegroundColor Cyan
 }
 
+function Find-AndCopyRuntimeDll {
+    param(
+        [Parameter(Mandatory = $true)][string]$DllName,
+        [Parameter(Mandatory = $true)][string]$DestinationDir,
+        [Parameter(Mandatory = $true)][string[]]$SearchRoots
+    )
+
+    $destinationPath = Join-Path $DestinationDir $DllName
+    if (Test-Path $destinationPath) {
+        Write-Host "Found $DllName already staged."
+        return $true
+    }
+
+    foreach ($root in $SearchRoots) {
+        if ([string]::IsNullOrWhiteSpace($root) -or -not (Test-Path $root)) { continue }
+
+        $direct = Join-Path $root $DllName
+        if (Test-Path $direct) {
+            Copy-Item $direct $DestinationDir -Force
+            Write-Host "Collected $DllName from $root"
+            return $true
+        }
+    }
+
+    foreach ($root in $SearchRoots) {
+        if ([string]::IsNullOrWhiteSpace($root) -or -not (Test-Path $root)) { continue }
+        $candidate = Get-ChildItem -Path $root -Filter $DllName -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($candidate) {
+            Copy-Item $candidate.FullName $DestinationDir -Force
+            Write-Host "Collected $DllName from $($candidate.DirectoryName)"
+            return $true
+        }
+    }
+
+    Write-Warning "Optional runtime DLL not found during staging: $DllName"
+    return $false
+}
+
+function Assert-ImportedRuntimeDllPresent {
+    param(
+        [Parameter(Mandatory = $true)][string]$DllName,
+        [Parameter(Mandatory = $true)][string]$ExecutablePath,
+        [Parameter(Mandatory = $true)][string]$OutputDir
+    )
+
+    $dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue
+    if (-not $dumpbin) {
+        Write-Warning "dumpbin.exe not found, skipping import validation for $DllName"
+        return
+    }
+
+    $dependents = (& $dumpbin.Source /DEPENDENTS $ExecutablePath 2>$null) -join "`n"
+    if ($dependents -notmatch [regex]::Escape($DllName)) { return }
+
+    if (-not (Test-Path (Join-Path $OutputDir $DllName))) {
+        throw "Missing required runtime DLL: $DllName. auto-kj.exe imports this DLL but it was not staged."
+    }
+}
+
 # 1. Setup Environment
 Write-Step "Preparing Environment..."
 if (!(Test-Path $QtPath)) { throw "Qt not found at $QtPath" }
@@ -99,6 +158,39 @@ if ($MissingOpenSsl.Count -gt 0) {
     Write-Host "Then rerun this script." -ForegroundColor Yellow
     throw "Packaging aborted: missing OpenSSL 1.1 runtime."
 }
+
+# 7. Collect optional runtime DLLs used by some shared package-manager builds
+Write-Step "Collecting optional runtime DLLs..."
+$ExtraRuntimeDlls = @(
+    "spdlog.dll",
+    "qrencode.dll",
+    "libqrencode.dll"
+)
+
+$ExtraSearchRoots = @(
+    "$BuildDir\Release",
+    "$BuildDir",
+    "build\Release",
+    "build",
+    "build_win\Release",
+    "build_win",
+    "build_windows\Release",
+    "build_windows",
+    "$QtPath\bin",
+    "$GStreamerPath\bin",
+    "$env:VCPKG_ROOT\installed\x64-windows\bin",
+    "$env:VCPKG_ROOT\installed\x64-windows-release\bin",
+    "$env:USERPROFILE\vcpkg\installed\x64-windows\bin",
+    "$env:USERPROFILE\vcpkg\installed\x64-windows-release\bin"
+) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+
+foreach ($dll in $ExtraRuntimeDlls) {
+    Find-AndCopyRuntimeDll -DllName $dll -DestinationDir $OutputDir -SearchRoots $ExtraSearchRoots | Out-Null
+}
+
+Assert-ImportedRuntimeDllPresent -DllName "spdlog.dll" -ExecutablePath "$OutputDir\auto-kj.exe" -OutputDir $OutputDir
+Assert-ImportedRuntimeDllPresent -DllName "qrencode.dll" -ExecutablePath "$OutputDir\auto-kj.exe" -OutputDir $OutputDir
+Assert-ImportedRuntimeDllPresent -DllName "libqrencode.dll" -ExecutablePath "$OutputDir\auto-kj.exe" -OutputDir $OutputDir
 
 # 7. Collect Assets (Fonts, Redist)
 Write-Step "Collecting Assets..."

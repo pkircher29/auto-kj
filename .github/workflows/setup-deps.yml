@@ -46,7 +46,6 @@ jobs:
           target: desktop
           arch: ${{ inputs.qt_arch }}
           modules: qtwebengine
-          extra: qtwebchannel
           cache: true
 
       - name: Install GStreamer via Chocolatey

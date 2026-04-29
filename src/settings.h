@@ -152,6 +152,8 @@ public:
     void setRequestServerToken(const QString &token);
     QString requestServerApiKey() const;
     void setRequestServerApiKey(const QString &apiKey);
+    QString requestServerSubscriptionTier() const;
+    void setRequestServerSubscriptionTier(const QString &tier);
     bool requestServerIgnoreCertErrors();
     void setRequestServerIgnoreCertErrors(bool ignore);
     // AutoKJ Server settings (venue slug replaces numeric venue ID; token replaces API key)
@@ -178,7 +180,7 @@ public:
     double venueLon() const;
     double venueGeofenceRadius() const;
     bool venueGeofenceEnabled() const;
-    QString kjPin() const;
+    // kjPin() removed — use venue slug or geolocation instead
     // Gig settings
     bool blockRepeatSongs() const;
     bool limitOneSongPerSinger() const;
@@ -241,7 +243,12 @@ public:
     bool recordingEnabled();
     void setRecordingEnabled(bool enabled);
     QString recordingRawExtension();
-    void setRecordingRawExtension(QString extension);
+    void setRecordingRawExtension(QString ext);
+    // Break music (filler between singers)
+    QString breakMusicDir();
+    void setBreakMusicDir(QString dir);
+    bool breakMusicEnabled();
+    void setBreakMusicEnabled(bool enabled);
     int cdgOffsetTop();
     int cdgOffsetBottom();
     int cdgOffsetLeft();
@@ -454,7 +461,7 @@ public slots:
     void setVenueLon(double lon);
     void setVenueLat(double lat);
     void setVenueAddress(const QString &address);
-    void setKjPin(const QString &pin);
+    // KJ PIN removed — singers use nearby/QR/slug to find venues
 
     // Internal helper for DJ-specific settings
     QString djKey(const QString &baseKey) const;

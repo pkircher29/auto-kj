@@ -18,9 +18,10 @@ public:
     void test() override;
     void setInterval(int intervalSecs) override;
     void authenticate() override;
+    bool changePassword(const QString &currentPassword, const QString &newPassword, QString *errorOut = nullptr) override;
     void refreshRequests() override;
     void refreshVenues() override;
-    void createVenue(const QString &name, const QString &address, const QString &pin) override;
+    void createVenue(const QString &name, const QString &address) override;
     void startNewShow() override;
     void endActiveShow() override;
     void triggerTestAdd() override;

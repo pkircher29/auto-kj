@@ -162,18 +162,16 @@ void AutoKJServerAPI::reconfigureFromSettings(bool force)
     const QString email = m_settings.requestServerEmail().trimmed();
     const QString password = m_settings.requestServerPassword();
     const QString token = m_settings.requestServerToken().trimmed();
-    const QString apiKey = m_settings.requestServerApiKey().trimmed();
     const int venueId = m_settings.requestServerVenue();
 
     if (!force && enabled == m_reconnectEnabled && serverUrl == m_lastServerUrl &&
         email == m_lastEmail && password == m_lastPassword && token == m_lastToken &&
-        apiKey == m_lastApiKey && venueId == m_lastVenueId) {
+        venueId == m_lastVenueId) {
         return;
     }
 
     const bool endpointChanged = force || serverUrl != m_lastServerUrl ||
-        email != m_lastEmail || password != m_lastPassword || token != m_lastToken ||
-        apiKey != m_lastApiKey;
+        email != m_lastEmail || password != m_lastPassword || token != m_lastToken;
     const bool venueChanged = force || venueId != m_lastVenueId;
 
     m_reconnectEnabled = enabled;
@@ -181,7 +179,6 @@ void AutoKJServerAPI::reconfigureFromSettings(bool force)
     m_lastEmail = email;
     m_lastPassword = password;
     m_lastToken = token;
-    m_lastApiKey = apiKey;
     m_lastVenueId = venueId;
 
     if (!enabled) {
@@ -260,7 +257,6 @@ void AutoKJServerAPI::authenticate()
     data["geofence_radius_miles"] = m_settings.venueGeofenceRadius();
     data["geofence_enabled"] = m_settings.venueGeofenceEnabled();
     data["address"] = m_settings.venueAddress();
-    data["kj_pin"] = m_settings.kjPin();
 
     sendEvent("kj:authenticate", data);
 }
@@ -287,7 +283,6 @@ void AutoKJServerAPI::pushVenueConfig()
     data["geofence_radius_miles"] = m_settings.venueGeofenceRadius();
     data["geofence_enabled"] = m_settings.venueGeofenceEnabled();
     data["address"] = m_settings.venueAddress();
-    data["kj_pin"] = m_settings.kjPin();
     sendEvent("kj:venue_config", data);
 }
 
@@ -417,13 +412,11 @@ void AutoKJServerAPI::handleEvent(const QString &event, const QJsonObject &data)
 
     if (event == "server:kj_web_command")
     {
-        // Commands from the KJ web tablet interface â€” will be wired to model methods in MainWindow
-        // Emit as a signal or handle directly (future: connect to MainWindow slots)
+        // Commands from the KJ web tablet interface are handled by MainWindow.
         const QString action = data.value("action").toString();
         const QJsonObject payload = data.value("payload").toObject();
-        Q_UNUSED(action)
-        Q_UNUSED(payload)
-        // TODO: emit kjWebCommand(action, payload) and handle in MainWindow
+        if (!action.isEmpty())
+            emit kjWebCommand(action, payload);
         return;
     }
 }
@@ -526,7 +519,7 @@ void AutoKJServerAPI::setAccepting(bool enabled, bool offerEndShowPrompt)
 
     ensureTokenAsync(
         [this, enabled, offerEndShowPrompt, failAccepting](const QString &token) {
-            if (token.isEmpty() && !hasHttpApiKey()) {
+            if (token.isEmpty()) {
                 failAccepting("Missing authentication.");
                 return;
             }
@@ -766,7 +759,7 @@ void AutoKJServerAPI::tryLegacySongDbSyncAsync(const std::function<void(bool, co
 {
     ensureTokenAsync(
         [this, callback](const QString &token) {
-            if (token.isEmpty() && !hasHttpApiKey()) {
+            if (token.isEmpty()) {
                 callback(false, "Missing authentication.");
                 return;
             }
@@ -898,7 +891,7 @@ void AutoKJServerAPI::refreshVenues()
 {
     ensureTokenAsync(
         [this](const QString &token) {
-            if (token.isEmpty() && !hasHttpApiKey()) {
+            if (token.isEmpty()) {
                 emit venuesRefreshFailed("Missing authentication.");
                 return;
             }
@@ -1065,6 +1058,14 @@ void AutoKJServerAPI::loginAsync(const std::function<void(bool, const QString &)
 
         m_token = token;
         m_settings.setRequestServerToken(token);
+
+        // Auto-save API key from login response (server auto-generates one if missing)
+        // api_key from login response is deprecated; JWT-only auth
+
+        const QString subscriptionTier = doc.object().value("subscription_tier").toString();
+        if (!subscriptionTier.isEmpty())
+            m_settings.setRequestServerSubscriptionTier(subscriptionTier);
+
         callback(true, {});
     });
 }
@@ -1085,11 +1086,8 @@ void AutoKJServerAPI::ensureTokenAsync(const std::function<void(const QString &)
     }
 
     if (m_settings.requestServerEmail().trimmed().isEmpty() || m_settings.requestServerPassword().trimmed().isEmpty()) {
-        if (hasHttpApiKey()) {
-            onSuccess({});
-        } else if (onFailure) {
+        if (onFailure)
             onFailure("Email and password are required.");
-        }
         return;
     }
 
@@ -1098,25 +1096,16 @@ void AutoKJServerAPI::ensureTokenAsync(const std::function<void(const QString &)
             onSuccess(m_token);
             return;
         }
-        if (hasHttpApiKey()) {
-            onSuccess({});
-        } else if (onFailure) {
+        if (onFailure)
             onFailure(error);
-        }
     });
-}
-bool AutoKJServerAPI::hasHttpApiKey() const
-{
-    return !m_settings.requestServerApiKey().trimmed().isEmpty();
 }
 
 void AutoKJServerAPI::setAuthHeader(QNetworkRequest &request, const QString &token)
 {
-    const QString apiKey = m_settings.requestServerApiKey().trimmed();
     if (!token.isEmpty())
         request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
-    if (!apiKey.isEmpty())
-        request.setRawHeader("X-Api-Key", apiKey.toUtf8());
+
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 }
 
@@ -1168,6 +1157,13 @@ bool AutoKJServerAPI::login(QString *errorOut)
 
     m_token = token;
     m_settings.setRequestServerToken(token);
+
+    // api_key from login response is deprecated; JWT-only auth
+
+    const QString subscriptionTier = doc.object().value("subscription_tier").toString();
+    if (!subscriptionTier.isEmpty())
+        m_settings.setRequestServerSubscriptionTier(subscriptionTier);
+
     if (errorOut) errorOut->clear();
     return true;
 }
@@ -1236,55 +1232,56 @@ void AutoKJServerAPI::testHttpAuthAsync(const std::function<void(bool, const QSt
 
     ensureTokenAsync(
         [this, baseUrl, callback](const QString &token) {
-            if (token.isEmpty() && !hasHttpApiKey()) {
+            if (token.isEmpty()) {
                 callback(false, "Missing authentication.", false);
                 return;
             }
 
-            auto performRequest = std::make_shared<std::function<void(const QString &, bool)>>();
-            *performRequest = [this, baseUrl, callback, performRequest](const QString &requestToken, bool allowRelogin) {
-                QNetworkRequest request(QUrl(baseUrl + "/api/v1/desktop/kj/venues"));
-                setAuthHeader(request, requestToken);
-                QNetworkReply *reply = m_nam->get(request);
-                connect(reply, &QNetworkReply::finished, this, [this, reply, callback, requestToken, allowRelogin, performRequest]() {
-                    const QByteArray body = reply->readAll();
-                    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-                    const QString details = errorFromReply(reply, body);
-                    const bool ok = reply->error() == QNetworkReply::NoError;
-                    reply->deleteLater();
+            QNetworkRequest request(QUrl(baseUrl + "/api/v1/auth/me"));
+            setAuthHeader(request, token);
+            QNetworkReply *reply = m_nam->get(request);
+            connect(reply, &QNetworkReply::finished, this, [this, reply, callback, token, baseUrl]() {
+                const QByteArray body = reply->readAll();
+                const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                const QString details = errorFromReply(reply, body);
+                const bool ok = reply->error() == QNetworkReply::NoError;
+                reply->deleteLater();
 
-                    if (status == 401 && allowRelogin && !requestToken.isEmpty()) {
-                        m_token.clear();
-                        m_settings.setRequestServerToken({});
-                        loginAsync([this, callback, performRequest](bool loginOk, const QString &error) {
-                            if (!loginOk) {
-                                callback(false, error, false);
+                if (status == 401) {
+                    // Token expired or invalid — try re-login
+                    m_token.clear();
+                    m_settings.setRequestServerToken({});
+                    loginAsync([this, baseUrl, callback](bool loginOk, const QString &error) {
+                        if (!loginOk) {
+                            callback(false, error, false);
+                            return;
+                        }
+                        // Re-validate with fresh token
+                        QNetworkRequest req2(QUrl(baseUrl + "/api/v1/auth/me"));
+                        setAuthHeader(req2, m_token);
+                        QNetworkReply *reply2 = m_nam->get(req2);
+                        connect(reply2, &QNetworkReply::finished, this, [this, reply2, callback]() {
+                            const QByteArray body2 = reply2->readAll();
+                            const QString details2 = errorFromReply(reply2, body2);
+                            const bool ok2 = reply2->error() == QNetworkReply::NoError;
+                            reply2->deleteLater();
+                            if (!ok2) {
+                                callback(false, details2.isEmpty() ? "Authentication failed." : details2, false);
                                 return;
                             }
-                            (*performRequest)(m_token, false);
+                            callback(true, {}, false);
                         });
-                        return;
-                    }
+                    });
+                    return;
+                }
 
-                    if (!ok) {
-                        const bool mayBeLegacyServer =
-                            details.contains("not found", Qt::CaseInsensitive) ||
-                            details.contains("invalid response", Qt::CaseInsensitive);
-                        callback(false, details, mayBeLegacyServer);
-                        return;
-                    }
+                if (!ok) {
+                    callback(false, details.isEmpty() ? "Auth validation failed." : details, false);
+                    return;
+                }
 
-                    const QJsonDocument doc = QJsonDocument::fromJson(body);
-                    if (!doc.isArray()) {
-                        callback(false, "Invalid response from /api/v1/desktop/kj/venues.", true);
-                        return;
-                    }
-
-                    callback(true, {}, false);
-                });
-            };
-
-            (*performRequest)(token.isEmpty() ? m_token : token, true);
+                callback(true, {}, false);
+            });
         },
         [callback](const QString &error) {
             callback(false, error, false);
@@ -1367,11 +1364,11 @@ void AutoKJServerAPI::markCheckinAdded(const QString &checkinId)
     sendEvent("kj:checkin_added", {{"checkinId", checkinId}});
 }
 
-void AutoKJServerAPI::createVenue(const QString &name, const QString &address, const QString &pin)
+void AutoKJServerAPI::createVenue(const QString &name, const QString &address)
 {
     ensureTokenAsync(
-        [this, name, address, pin](const QString &token) {
-            if (token.isEmpty() && !hasHttpApiKey()) {
+        [this, name, address](const QString &token) {
+            if (token.isEmpty()) {
                 emit testFailed("Venue creation failed: Missing authentication.");
                 return;
             }
@@ -1383,7 +1380,6 @@ void AutoKJServerAPI::createVenue(const QString &name, const QString &address, c
             QJsonObject obj;
             obj["name"] = name;
             obj["address"] = address;
-            obj["kj_pin"] = pin;
 
             QNetworkReply *reply = m_nam->post(request, QJsonDocument(obj).toJson());
             connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -1409,7 +1405,7 @@ void AutoKJServerAPI::startNewShow()
 {
     ensureTokenAsync(
         [this](const QString &token) {
-            if (token.isEmpty() && !hasHttpApiKey()) {
+            if (token.isEmpty()) {
                 emit startNewShowFinished(false, "Missing authentication.");
                 return;
             }
@@ -1442,7 +1438,7 @@ void AutoKJServerAPI::endActiveShow()
 {
     ensureTokenAsync(
         [this](const QString &token) {
-            if (token.isEmpty() && !hasHttpApiKey()) {
+            if (token.isEmpty()) {
                 emit endActiveShowFinished(false, "Missing authentication.");
                 return;
             }

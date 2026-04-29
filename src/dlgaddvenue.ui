@@ -66,20 +66,6 @@ Please create your first venue to start your show.</string>
        </item>
       </layout>
      </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="label_4">
-       <property name="text">
-        <string>KJ Pin (for kiosk):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1">
-      <widget class="QLineEdit" name="lineEditPin">
-       <property name="text">
-        <string>1234</string>
-       </property>
-      </widget>
-     </item>
     </layout>
    </item>
    <item>
@@ -138,7 +124,7 @@ Please create your first venue to start your show.</string>
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="btnClearPin">
+      <widget class="QPushButton" name="btnClearCoords">
        <property name="text">
         <string>Clear Pin</string>
        </property>

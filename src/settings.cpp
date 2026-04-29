@@ -1078,6 +1078,19 @@ void Settings::setRequestServerApiKey(const QString &apiKey)
     emit requestServerCredentialsChanged();
 }
 
+QString Settings::requestServerSubscriptionTier() const
+{
+    return settings->value("requestServer/subscriptionTier", QString()).toString().trimmed().toLower();
+}
+
+void Settings::setRequestServerSubscriptionTier(const QString &tier)
+{
+    const QString normalized = tier.trimmed().toLower();
+    if (requestServerSubscriptionTier() == normalized)
+        return;
+    settings->setValue("requestServer/subscriptionTier", normalized);
+}
+
 bool Settings::requestServerIgnoreCertErrors()
 {
     return settings->value("requestServerIgnoreCertErrors", false).toBool();
@@ -1366,6 +1379,28 @@ QString Settings::recordingRawExtension()
 void Settings::setRecordingRawExtension(QString extension)
 {
     settings->setValue("recordingRawExtension", extension);
+}
+
+// ═══ Break Music ═══
+
+QString Settings::breakMusicDir()
+{
+    return settings->value("breakMusicDir", QString()).toString();
+}
+
+void Settings::setBreakMusicDir(QString dir)
+{
+    settings->setValue("breakMusicDir", dir);
+}
+
+bool Settings::breakMusicEnabled()
+{
+    return settings->value("breakMusicEnabled", false).toBool();
+}
+
+void Settings::setBreakMusicEnabled(bool enabled)
+{
+    settings->setValue("breakMusicEnabled", enabled);
 }
 
 void Settings::setCdgOffsetTop(int pixels)
@@ -2092,14 +2127,7 @@ void Settings::setVenueGeofenceEnabled(bool enabled) {
     emit venueConfigChanged();
 }
 
-QString Settings::kjPin() const {
-    return settings->value("kjPin", "1234").toString();
-}
-
-void Settings::setKjPin(const QString &pin) {
-    settings->setValue("kjPin", pin);
-    emit venueConfigChanged();
-}
+// KJ PIN removed — singers find venues via nearby/QR/slug, not a numeric code
 
 bool Settings::blockRepeatSongs() const {
     return settings->value(djKey("blockRepeatSongs"), true).toBool();

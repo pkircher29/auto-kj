@@ -138,6 +138,57 @@ jobs:
           $gstBin = "$env:GST_BASE_PATH\bin"
           Copy-Item "$gstBin\*.dll" -Destination $releaseDir -Force
 
+          # GStreamer plugins: Roger's custom SDK has all gst*.dll in bin/ (flat),
+          # but GStreamer at runtime expects them in lib/gstreamer-1.0/.
+          # Copy gst*.dll from bin/ into lib/gstreamer-1.0/ so GST_PLUGIN_SYSTEM_PATH works.
+          $destPluginsDir = Join-Path $releaseDir "lib\gstreamer-1.0"
+          New-Item -ItemType Directory -Force -Path $destPluginsDir | Out-Null
+          $gstPlugins = Get-ChildItem -Path "$gstBin\gst*.dll" -File -ErrorAction SilentlyContinue
+          if ($gstPlugins.Count -gt 0) {
+            Copy-Item "$gstBin\gst*.dll" -Destination $destPluginsDir -Force
+            Write-Host "Copied $($gstPlugins.Count) GStreamer plugin DLLs to $destPluginsDir"
+          } else {
+            # Fallback: check for standard lib/gstreamer-1.0 directory
+            $gstPluginsDir = "$env:GST_BASE_PATH\lib\gstreamer-1.0"
+            if (Test-Path $gstPluginsDir) {
+              Copy-Item "$gstPluginsDir\*.dll" -Destination $destPluginsDir -Force
+              Write-Host "Copied GStreamer plugins from lib dir to $destPluginsDir"
+            } else {
+              Write-Host "WARNING: No GStreamer plugins found anywhere"
+            }
+          }
+
+          # Copy GStreamer plugin scanner and libexec
+          $gstLibexecDir = "$env:GST_BASE_PATH\libexec\gstreamer-1.0"
+          if (Test-Path $gstLibexecDir) {
+            $destLibexecDir = Join-Path $releaseDir "libexec\gstreamer-1.0"
+            New-Item -ItemType Directory -Force -Path $destLibexecDir | Out-Null
+            Copy-Item "$gstLibexecDir\*" -Destination $destLibexecDir -Recurse -Force
+            Write-Host "Copied GStreamer libexec to $destLibexecDir"
+          } else {
+            # Check for gst-plugin-scanner in bin/ (flat SDK)
+            $scanner = Get-ChildItem -Path "$gstBin\gst-plugin-scanner*" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($scanner) {
+              $destLibexecDir = Join-Path $releaseDir "libexec\gstreamer-1.0"
+              New-Item -ItemType Directory -Force -Path $destLibexecDir | Out-Null
+              Copy-Item $scanner.FullName -Destination $destLibexecDir -Force
+              Write-Host "Copied gst-plugin-scanner from bin to $destLibexecDir"
+            } else {
+              Write-Host "WARNING: GStreamer plugin scanner not found"
+            }
+          }
+
+          # Copy GIO modules (required for network/TLS in GStreamer)
+          $gioModulesDir = "$env:GST_BASE_PATH\lib\gio\modules"
+          if (Test-Path $gioModulesDir) {
+            $destGioDir = Join-Path $releaseDir "lib\gio\modules"
+            New-Item -ItemType Directory -Force -Path $destGioDir | Out-Null
+            Copy-Item "$gioModulesDir\*.dll" -Destination $destGioDir -Force
+            Write-Host "Copied GIO modules to $destGioDir"
+          } else {
+            Write-Host "WARNING: GIO modules directory not found at $gioModulesDir"
+          }
+
           $openSslNames = @(
             "libssl-1_1-x64.dll",
             "libcrypto-1_1-x64.dll"
@@ -162,6 +213,63 @@ jobs:
             }
             if (-not $copied) {
               throw "Missing required OpenSSL runtime DLL: $dll"
+            }
+          }
+
+          $extraRuntimeDlls = @(
+            "spdlog.dll",
+            "qrencode.dll",
+            "libqrencode.dll"
+          )
+          $extraSearchRoots = @(
+            "build\Release",
+            "build",
+            "$env:Qt5_DIR\..\..\..\bin",
+            "$env:QT_ROOT_DIR\bin",
+            "C:\gstreamer-sdk\bin",
+            "$env:VCPKG_ROOT\installed\x64-windows\bin",
+            "$env:VCPKG_ROOT\installed\x64-windows-release\bin",
+            "$env:USERPROFILE\vcpkg\installed\x64-windows\bin",
+            "$env:USERPROFILE\vcpkg\installed\x64-windows-release\bin"
+          ) | Where-Object { $_ -and (Test-Path $_) }
+
+          foreach ($dll in $extraRuntimeDlls) {
+            if (Test-Path (Join-Path $releaseDir $dll)) {
+              continue
+            }
+
+            $copied = $false
+            foreach ($root in $extraSearchRoots) {
+              $candidate = Join-Path $root $dll
+              if (Test-Path $candidate) {
+                Copy-Item $candidate -Destination $releaseDir -Force
+                Write-Host "Collected $dll from $root"
+                $copied = $true
+                break
+              }
+            }
+
+            if (-not $copied) {
+              foreach ($root in $extraSearchRoots) {
+                $candidate = Get-ChildItem -Path $root -Filter $dll -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($candidate) {
+                  Copy-Item $candidate.FullName -Destination $releaseDir -Force
+                  Write-Host "Collected $dll from $($candidate.DirectoryName)"
+                  $copied = $true
+                  break
+                }
+              }
+            }
+
+            if (-not $copied) {
+              Write-Host "Optional runtime DLL not found during staging: $dll"
+            }
+          }
+
+          $dependents = (& dumpbin /DEPENDENTS "$releaseDir\auto-kj.exe" 2>$null) -join "`n"
+          foreach ($required in @("spdlog.dll", "qrencode.dll", "libqrencode.dll")) {
+            if ($dependents -match [regex]::Escape($required) -and -not (Test-Path (Join-Path $releaseDir $required))) {
+              throw "Missing required runtime DLL: $required (imported by auto-kj.exe but not staged)"
             }
           }
 

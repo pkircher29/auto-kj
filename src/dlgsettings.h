@@ -51,6 +51,7 @@ private:
     QStringList getMonitors();
     QStringList currentSongLibraryDirs() const;
     void reloadSongLibraryDirs();
+    void updateSubscriptionTierUi();
     MediaBackend &kAudioBackend;
     MediaBackend &bmAudioBackend;
     QNetworkAccessManager *networkManager;

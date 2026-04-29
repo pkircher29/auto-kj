@@ -93,6 +93,7 @@ private:
     bool m_kNeedAutoSize{false};
     bool m_bNeedAutoSize{true};
     bool m_testMode{false};
+    bool m_breakMusicPlaying{false};
     int m_rtClickQueueSongId{-1};
     int m_rtClickRotationSingerId{-1};
     int m_curSingerOriginalPosition{0};
@@ -172,7 +173,7 @@ private:
     QCheckBox *m_checkBoxAcceptingRequests{nullptr};
     QToolButton *m_btnEndShow{nullptr};
     QToolBar *m_venueTb{nullptr};
-    RotationFairnessEngine m_fairnessEngine{m_rotModel, this};
+    RotationFairnessEngine m_fairnessEngine{m_rotModel, m_settings, this};
     AutoBackupManager *m_autoBackupManager{nullptr};
     QWidget *m_historyTabWidget;
     std::mt19937_64 rng;
@@ -188,6 +189,8 @@ private:
     void addSfxButton(const QString &filename, const QString &label, bool reset = false);
     void refreshSfxButtons();
     void updateEndShowButtonState();
+    void playBreakMusic();
+    void stopBreakMusic();
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);
@@ -201,6 +204,7 @@ private slots:
     void updateDjList();
     void showManageDjsDialog();
     void showManageVenuesGigsDialog();
+    void handleKjWebCommand(const QString &action, const QJsonObject &payload);
     void search();
     void databaseUpdated();
     void databaseCleared();

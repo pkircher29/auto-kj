@@ -40,6 +40,7 @@
 #include "dlgaddsong.h"
 #include "dlgaddvenue.h"
 #include <QGraphicsBlurEffect>
+#include <QRandomGenerator>
 #include <spdlog/version.h>
 #include <taglib.h>
 #include <miniz/miniz.h>
@@ -252,7 +253,7 @@ void MainWindow::setupShortcuts() {
         m_songbookApi.notifySongPlayed(nextSinger.name, m_curArtist, m_curTitle, nextSinger.nextSongCoSingers(), m_settings.kjName());
         m_songbookApi.pushNowPlaying(nextSinger.name, m_curArtist, m_curTitle,
                                      static_cast<int>(m_mediaBackendKar.duration() / 1000), nextSinger.nextSongKeyChg());
-        if (m_settings.rotationAltSortOrder()) {
+        if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
             auto curSingerPos = nextSinger.position;
             m_curSingerOriginalPosition = curSingerPos;
             if (curSingerPos != 0)
@@ -956,7 +957,6 @@ void MainWindow::setupConnections() {
         updateRotationDuration();
         m_rotModel.layoutChanged();
     });
-    connect(&m_songbookApi, &AutoKJServerClient::venuesChanged, this, &MainWindow::onVenuesChanged);
     connect(m_lazyDurationUpdater.get(), &LazyDurationUpdateController::gotDuration, &m_karaokeSongsModel,
             &TableModelKaraokeSongs::setSongDuration);
     connect(ui->tableViewRotation->selectionModel(), &QItemSelectionModel::selectionChanged, this,
@@ -1171,6 +1171,27 @@ void MainWindow::setupConnections() {
     connect(refreshVenueBtn, &QToolButton::clicked, &m_songbookApi, [this]() { m_songbookApi.refreshVenues(); });
     connect(manageVenueBtn, &QToolButton::clicked, this, &MainWindow::showManageVenuesGigsDialog);
     connect(&m_songbookApi, &AutoKJServerClient::venuesChanged, this, &MainWindow::onVenuesChanged);
+    connect(&m_songbookApi, &AutoKJServerClient::kjWebCommand, this, &MainWindow::handleKjWebCommand);
+    connect(&m_songbookApi, &AutoKJServerClient::acceptingSetFinished, this,
+            [this](bool ok, bool enabled, const QString &error) {
+        if (!m_checkBoxAcceptingRequests)
+            return;
+        m_checkBoxAcceptingRequests->blockSignals(true);
+        m_checkBoxAcceptingRequests->setChecked(ok ? enabled : m_songbookApi.getAccepting());
+        m_checkBoxAcceptingRequests->blockSignals(false);
+        if (!ok && !error.isEmpty()) {
+            QMessageBox::warning(this, "Request Server", error);
+        }
+        updateEndShowButtonState();
+    });
+    connect(&m_songbookApi, &AutoKJServerClient::connectionStatusChanged, this, [this](bool connected) {
+        if (m_venueTb)
+            m_venueTb->setEnabled(connected || m_settings.requestServerEnabled());
+        if (connected) {
+            m_songbookApi.refreshVenues();
+            rotationDataChanged();
+        }
+    });
     connect(m_comboBoxVenue, QOverload<int>::of(&QComboBox::activated), this, &MainWindow::onVenueSelected);
     
     // DJ selector (next to venue)
@@ -1334,14 +1355,13 @@ void MainWindow::onVenuesChanged(const OkjsVenues &venues) {
             if (dlg.exec() == QDialog::Accepted) {
                 QString name = dlg.venueName();
                 QString address = dlg.venueAddress();
-                QString pin = dlg.venuePin();
 
                 if (name.isEmpty()) {
                     QMessageBox::warning(this, "Input Required", "Venue name is required.");
                     continue;
                 }
 
-                m_songbookApi.createVenue(name, address, pin);
+                m_songbookApi.createVenue(name, address);
                 success = true;
             } else {
                 QMessageBox::StandardButton res = QMessageBox::question(this, "Setup Required",
@@ -1499,7 +1519,8 @@ void MainWindow::dbInit(const QDir &okjDataDir) {
     query.exec(
             "CREATE TABLE IF NOT EXISTS bmplsongs ( plsongid INTEGER PRIMARY KEY AUTOINCREMENT, playlist INT, position INT, Artist INT, Title INT, Filename INT, Duration INT, path INT)");
     query.exec("CREATE TABLE IF NOT EXISTS bmsrcdirs ( path NOT NULL)");
-    query.exec("PRAGMA synchronous=OFF");
+    query.exec("PRAGMA synchronous=NORMAL");
+    query.exec("PRAGMA journal_mode=WAL");
     query.exec("PRAGMA cache_size=300000");
     query.exec("PRAGMA temp_store=2");
 
@@ -1661,7 +1682,7 @@ void MainWindow::play(const QString &karaokeFilePath, const bool &k2k) {
                 cdgWindow->showAlert(false);
             }
             m_mediaBackendKar.stop();
-            if (m_k2kTransition && m_settings.rotationAltSortOrder() && m_rotModel.singerCount() > 1)
+            if (m_k2kTransition && m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1 && m_rotModel.singerCount() > 1)
                 m_rotModel.singerMove(0, static_cast<int>(m_rotModel.singerCount() - 1));
             ui->spinBoxTempo->setValue(100);
         }
@@ -1960,7 +1981,7 @@ void MainWindow::tableViewRotationDoubleClicked(const QModelIndex &index) {
             m_qModel.setPlayed(singer.nextSongQueueId());
             m_rotDelegate.setCurrentSinger(singerId);
             m_rotModel.setCurrentSinger(singerId);
-            if (m_settings.rotationAltSortOrder()) {
+            if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
                 auto curSingerPos = m_rotModel.getSinger(singerId).position;
                 m_curSingerOriginalPosition = curSingerPos;
                 if (curSingerPos != 0) {
@@ -2064,7 +2085,7 @@ void MainWindow::tableViewQueueDoubleClicked(const QModelIndex &index) {
         m_mediaBackendKar.stop();
         while (m_mediaBackendKar.state() == MediaBackend::PlayingState)
             QApplication::processEvents();
-        if (m_settings.rotationAltSortOrder())
+        if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1)
             m_rotModel.singerMove(0, static_cast<int>(m_rotModel.singerCount() -1), true);
     }
     else if (m_mediaBackendKar.state() == MediaBackend::PausedState) {
@@ -2120,7 +2141,7 @@ void MainWindow::tableViewQueueDoubleClicked(const QModelIndex &index) {
     m_songbookApi.notifySongPlayed(singer.name, song.artist, song.title, cosingers, m_settings.kjName());
     m_songbookApi.pushNowPlaying(singer.name, song.artist, song.title,
                                  static_cast<int>(m_mediaBackendKar.duration() / 1000), song.keyChange);
-    if (m_settings.rotationAltSortOrder()) {
+    if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
         // Need a new copy of the singer since the rotation has changed since we last grabbed them
         singer = m_rotModel.getSinger(singer.id);
         m_curSingerOriginalPosition = singer.position;
@@ -2387,10 +2408,21 @@ void MainWindow::karaokeMediaBackend_stateChanged(const MediaBackend::State &sta
                     cdgWindow->setCountdownSecs(m_settings.karaokeAATimeout());
                     cdgWindow->showAlert(true);
                 }
+                // If rotation is empty and break music is enabled, start playing
+                if (empty && m_settings.breakMusicEnabled()) {
+                    m_logger->info("{} Rotation empty - starting break music", m_loggingPrefix);
+                    playBreakMusic();
+                }
             }
         }
-        if (m_settings.rotationAltSortOrder()) {
+        if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
             m_rotModel.singerMove(0, static_cast<int>(m_rotModel.singerCount() - 1));
+            m_rotModel.setCurrentSinger(-1);
+            m_rotDelegate.setCurrentSinger(-1);
+            ui->tableViewRotation->clearSelection();
+            ui->tableViewRotation->selectRow(0);
+            m_rotModel.setCurRemainSecs(0);
+        } else if (m_settings.rotationAltSortOrder()) {
             m_rotModel.setCurrentSinger(-1);
             m_rotDelegate.setCurrentSinger(-1);
             ui->tableViewRotation->clearSelection();
@@ -2466,6 +2498,24 @@ void MainWindow::rotationDataChanged() {
     if (m_shuttingDown)
         return;
     m_logger->trace("{} [{}] Called", m_loggingPrefix, __func__);
+    
+    // Stop break music if rotation is no longer empty
+    if (m_breakMusicPlaying && m_rotModel.singerCount() > 0) {
+        // Check if any singer has a queued song
+        bool hasQueuedSongs = false;
+        for (size_t i = 0; i < m_rotModel.singerCount(); i++) {
+            const auto singer = m_rotModel.getSingerAtPosition(static_cast<int>(i));
+            if (!singer.nextSongPath().isEmpty()) {
+                hasQueuedSongs = true;
+                break;
+            }
+        }
+        if (hasQueuedSongs) {
+            m_logger->info("{} Rotation has queued songs - stopping break music", m_loggingPrefix);
+            stopBreakMusic();
+        }
+    }
+    
     auto st = std::chrono::high_resolution_clock::now();
     if (m_settings.rotationShowNextSong())
         autosizeRotationCols();
@@ -3066,7 +3116,7 @@ void MainWindow::karaokeAATimerTimeout() {
         m_qModel.setPlayed(singer.nextSongQueueId());
         m_rotModel.setCurrentSinger(m_kAANextSinger);
         m_rotDelegate.setCurrentSinger(m_kAANextSinger);
-        if (m_settings.rotationAltSortOrder()) {
+        if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
             m_curSingerOriginalPosition = singer.position;
             if (singer.position != 0)
                 m_rotModel.singerMove(singer.position, 0);
@@ -4629,7 +4679,7 @@ void MainWindow::comboBoxSearchTypeIndexChanged(int index) {
 }
 
 void MainWindow::actionDocumentation() {
-    QDesktopServices::openUrl(QUrl("https://docs.Auto-KJ.org"));
+    QDesktopServices::openUrl(QUrl("https://auto-kj.com"));
 }
 
 void MainWindow::buttonHistoryPlayClicked() {
@@ -4683,7 +4733,7 @@ void MainWindow::buttonHistoryPlayClicked() {
     m_mediaBackendKar.setPitchShift(curKeyChange);
     m_rotModel.setCurrentSinger(curSingerId);
     m_rotDelegate.setCurrentSinger(curSingerId);
-    if (m_settings.rotationAltSortOrder()) {
+    if (m_settings.rotationAltSortOrder() && m_rotModel.rotationTopSingerId() == -1) {
         auto curSingerPos = m_rotModel.getSinger(curSingerId).position;
         m_curSingerOriginalPosition = curSingerPos;
         if (curSingerPos != 0)
@@ -4927,6 +4977,126 @@ void MainWindow::showManageDjsDialog() {
     dlg.exec();
 }
 
+void MainWindow::handleKjWebCommand(const QString &action, const QJsonObject &payload) {
+    QString normalized = action.trimmed().toLower();
+    normalized.replace('-', '_');
+
+    auto payloadString = [&payload](const QStringList &keys) {
+        for (const QString &key : keys) {
+            const QJsonValue value = payload.value(key);
+            if (value.isString() && !value.toString().trimmed().isEmpty())
+                return value.toString().trimmed();
+        }
+        return QString();
+    };
+
+    m_logger->info("{} Web command received: {}", m_loggingPrefix, normalized.toStdString());
+
+    if (normalized == "show_requests" || normalized == "open_requests") {
+        requestsDialog->show();
+        requestsDialog->raise();
+        requestsDialog->activateWindow();
+        return;
+    }
+
+    if (normalized == "show_checkins" || normalized == "open_checkins") {
+        auto *dlg = new DlgCheckins(m_rotModel, m_songbookApi, this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->show();
+        return;
+    }
+
+    if (normalized == "show_qr" || normalized == "open_qr") {
+        showQRCodeDialog();
+        return;
+    }
+
+    if (normalized == "refresh_requests") {
+        m_songbookApi.refreshRequests();
+        return;
+    }
+
+    if (normalized == "refresh_venues") {
+        m_songbookApi.refreshVenues();
+        return;
+    }
+
+    if (normalized == "set_accepting") {
+        const bool enabled = payload.value("enabled").toBool(payload.value("accepting").toBool(m_songbookApi.getAccepting()));
+        m_songbookApi.setAccepting(enabled);
+        return;
+    }
+
+    if (normalized == "toggle_accepting") {
+        m_songbookApi.setAccepting(!m_songbookApi.getAccepting());
+        return;
+    }
+
+    if (normalized == "start_show") {
+        m_songbookApi.startNewShow();
+        return;
+    }
+
+    if (normalized == "end_show") {
+        m_songbookApi.endActiveShow();
+        return;
+    }
+
+    if (normalized == "clear_requests") {
+        m_songbookApi.clearRequests();
+        return;
+    }
+
+    if (normalized == "remove_request" || normalized == "accept_request" || normalized == "reject_request") {
+        const QString requestId = payloadString({"requestId", "request_id", "id"});
+        if (!requestId.isEmpty())
+            m_songbookApi.removeRequest(requestId);
+        return;
+    }
+
+    if (normalized == "sync_song_db" || normalized == "update_song_db") {
+        m_songbookApi.updateSongDb();
+        return;
+    }
+
+    if (normalized == "karaoke_stop") {
+        audioRecorder.stop();
+        m_mediaBackendKar.stop();
+        return;
+    }
+
+    if (normalized == "karaoke_pause") {
+        if (m_mediaBackendKar.state() == MediaBackend::PlayingState)
+            m_mediaBackendKar.pause();
+        return;
+    }
+
+    if (normalized == "karaoke_resume") {
+        if (m_mediaBackendKar.state() == MediaBackend::PausedState)
+            m_mediaBackendKar.play();
+        return;
+    }
+
+    if (normalized == "break_stop") {
+        m_mediaBackendBm.stop(false);
+        return;
+    }
+
+    if (normalized == "break_pause") {
+        if (m_mediaBackendBm.state() == MediaBackend::PlayingState)
+            m_mediaBackendBm.pause();
+        return;
+    }
+
+    if (normalized == "break_resume") {
+        if (m_mediaBackendBm.state() == MediaBackend::PausedState)
+            m_mediaBackendBm.play();
+        return;
+    }
+
+    m_logger->warn("{} Ignoring unknown web command: {}", m_loggingPrefix, normalized.toStdString());
+}
+
 void MainWindow::showManageVenuesGigsDialog() {
     if (!m_settings.requestServerEnabled()) {
         QMessageBox::information(this, "Manage Venues & Gigs", "Enable request server first in Settings.");
@@ -4936,3 +5106,50 @@ void MainWindow::showManageVenuesGigsDialog() {
     dlg.exec();
 }
 
+
+// ═══ Break Music ═══
+
+void MainWindow::playBreakMusic()
+{
+    if (!m_settings.breakMusicEnabled())
+        return;
+    
+    const QString breakDir = m_settings.breakMusicDir();
+    if (breakDir.isEmpty() || !QDir(breakDir).exists()) {
+        m_logger->warn("{} Break music enabled but directory not set or doesn't exist: {}", m_loggingPrefix, breakDir.toStdString());
+        return;
+    }
+    
+    // Get list of audio files
+    QDir dir(breakDir);
+    QStringList filters;
+    filters << "*.mp3" << "*.wav" << "*.flac" << "*.m4a" << "*.ogg";
+    dir.setNameFilters(filters);
+    dir.setFilter(QDir::Files);
+    
+    const auto files = dir.entryList();
+    if (files.isEmpty()) {
+        m_logger->warn("{} Break music directory is empty: {}", m_loggingPrefix, breakDir.toStdString());
+        return;
+    }
+    
+    // Pick random file
+    const int randomIndex = QRandomGenerator::global()->bounded(files.size());
+    const QString selectedFile = dir.filePath(files[randomIndex]);
+    
+    m_logger->info("{} Playing break music: {}", m_loggingPrefix, selectedFile.toStdString());
+    
+    m_mediaBackendBm.setMedia(selectedFile);
+    m_mediaBackendBm.play();
+    m_breakMusicPlaying = true;
+}
+
+void MainWindow::stopBreakMusic()
+{
+    if (!m_breakMusicPlaying)
+        return;
+    
+    m_logger->info("{} Stopping break music", m_loggingPrefix);
+    m_mediaBackendBm.stop(true);
+    m_breakMusicPlaying = false;
+}

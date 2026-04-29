@@ -33,8 +33,8 @@ void KaraokeFilePatternResolver::InitializeData()
 
         m_path_pattern_map[query.value(0).toString()] =
                 KaraokeFilePatternResolver::KaraokeFilePattern {
-                .pattern = pattern,
-                .customPattern = customPattern
+                pattern,
+                customPattern
         };
     }
     m_initialized = true;
@@ -60,7 +60,9 @@ const KaraokeFilePatternResolver::KaraokeFilePattern& KaraokeFilePatternResolver
     return getDefaultPattern();
 }
 
-static const KaraokeFilePatternResolver::KaraokeFilePattern defaultPattern { KaraokeFilePatternResolver::KaraokeFilePattern { .pattern = SourceDir::SAT } };
+static const KaraokeFilePatternResolver::KaraokeFilePattern defaultPattern {
+    KaraokeFilePatternResolver::KaraokeFilePattern { SourceDir::SAT, CustomPattern() }
+};
 
 const KaraokeFilePatternResolver::KaraokeFilePattern &KaraokeFilePatternResolver::getDefaultPattern()
 {

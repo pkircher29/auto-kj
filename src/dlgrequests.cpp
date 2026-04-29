@@ -577,7 +577,7 @@ void DlgRequests::on_spinBoxKey_valueChanged(int arg1) {
 }
 
 void DlgRequests::on_pushButtonWebSearch_clicked() {
-    QString link = "http://db.Auto-KJ.org/?type=All&searchstr=" + ui->lineEditSearch->text();
+    QString link = "https://auto-kj.com/?type=All&searchstr=" + ui->lineEditSearch->text();
     QDesktopServices::openUrl(QUrl(link));
 }
 

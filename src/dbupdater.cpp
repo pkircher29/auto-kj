@@ -368,9 +368,9 @@ void DbUpdater::DbEnumerator::readNextRecord()
 {
     if ((IsValid = m_dbSongs.next())) {
         CurrentRecord = DbSongRecord {
-            .id =        m_dbSongs.value(0).toInt(),
-            .isDropped = m_dbSongs.value(2).toBool(),
-            .path =      m_dbSongs.value(1).toString()
+            m_dbSongs.value(0).toInt(),
+            m_dbSongs.value(2).toBool(),
+            m_dbSongs.value(1).toString()
         };
     }
 }

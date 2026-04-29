@@ -37,14 +37,14 @@ public:
 
     QString venueName() const;
     QString venueAddress() const;
-    QString venuePin() const;
+
     double venueLat() const;     // returns NaN if no pin
     double venueLon() const;     // returns NaN if no pin
     bool   hasCoordinates() const;
 
     void setVenueName(const QString &name);
     void setVenueAddress(const QString &address);
-    void setVenuePin(const QString &pin);
+
     void setVenueCoordinates(double lat, double lon);
     void setSubmitButtonText(const QString &text);
 
@@ -52,7 +52,8 @@ private slots:
     void on_btnCreate_clicked();
     void on_btnCancel_clicked();
     void on_btnFindOnMap_clicked();
-    void on_btnClearPin_clicked();
+    void on_btnClearCoords_clicked();
+
     void onMapReady();
     void onMapClicked(double lat, double lon);
 
@@ -69,7 +70,7 @@ private:
     double m_lon = 0.0;
     bool   m_hasCoords  = false;
     bool   m_mapReady   = false;
-    bool   m_pendingPin = false;   // queue setLocation until JS reports ready
+    bool   m_pendingCoords = false;   // queue setLocation until JS reports ready
 };
 
 #endif // DLGADDVENUE_H

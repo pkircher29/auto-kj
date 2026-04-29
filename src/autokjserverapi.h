@@ -76,7 +76,7 @@ public:
     void refreshVenues() override;
 
     /** Create a new venue via the API */
-    void createVenue(const QString &name, const QString &address, const QString &pin) override;
+    void createVenue(const QString &name, const QString &address) override;
 
     /** Start a new active show (gig) for the selected venue. */
     void startNewShow() override;
@@ -152,7 +152,6 @@ private:
     QString m_lastEmail;
     QString m_lastPassword;
     QString m_lastToken;
-    QString m_lastApiKey;
     int m_lastVenueId{-1};
 
     OkjsRequests m_requests;
@@ -178,7 +177,6 @@ private:
     void ensureTokenAsync(const std::function<void(const QString &)> &onSuccess,
                           const std::function<void(const QString &)> &onFailure = {});
     void setAuthHeader(QNetworkRequest &request, const QString &token);
-    bool hasHttpApiKey() const;
     void testHttpAuthAsync(const std::function<void(bool, const QString &, bool)> &callback);
     void tryLegacySongDbSyncAsync(const std::function<void(bool, const QString &)> &callback);
     void patchAcceptingState(bool enabled, const QString &token,

@@ -22,6 +22,7 @@
 #include "dlgsettings.h"
 #include "ui_dlgsettings.h"
 #include "dlgregister.h"
+#include "dlgforgotpassword.h"
 #include <QGuiApplication>
 #include <QDesktopWidget>
 #include <QFontDialog>
@@ -253,10 +254,7 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
 
     ui->lineEditEmail->setText(m_settings.requestServerEmail());
     ui->lineEditPassword->setText(m_settings.requestServerPassword());
-    ui->lineEditApiKey->setText(m_settings.requestServerApiKey());
-    connect(ui->lineEditApiKey, &QLineEdit::editingFinished, this, [this]() {
-        m_settings.setRequestServerApiKey(ui->lineEditApiKey->text());
-    });
+    updateSubscriptionTierUi();
     ui->checkBoxIgnoreCertErrors->setChecked(m_settings.requestServerIgnoreCertErrors());
     if ((m_settings.bgMode() == m_settings.BG_MODE_IMAGE) || (m_settings.bgSlideShowDir() == ""))
         ui->rbBgImage->setChecked(true);
@@ -408,6 +406,22 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
 
 DlgSettings::~DlgSettings() {
     delete ui;
+}
+
+void DlgSettings::updateSubscriptionTierUi()
+{
+    const QString tier = m_settings.requestServerSubscriptionTier().trimmed().toLower();
+    if (tier == "advanced") {
+        ui->labelPlanValue->setText("Advanced ✅");
+    } else if (tier == "unlimited") {
+        ui->labelPlanValue->setText("Unlimited ✅");
+    } else if (tier == "lifetime") {
+        ui->labelPlanValue->setText("Lifetime ✅");
+    } else if (tier == "free") {
+        ui->labelPlanValue->setText("Free — <a href=\"https://auto-kj.com/pricing\">Upgrade</a>");
+    } else {
+        ui->labelPlanValue->setText("Not available yet — sign in to load plan details.");
+    }
 }
 
 QStringList DlgSettings::currentSongLibraryDirs() const
@@ -830,6 +844,11 @@ void DlgSettings::on_btnCreateAccount_clicked() {
     }
 }
 
+void DlgSettings::on_btnForgotPassword_clicked() {
+    DlgForgotPassword dlg(m_settings, this);
+    dlg.exec();
+}
+
 void DlgSettings::on_btnManageSubscription_clicked() {
     QDesktopServices::openUrl(QUrl("https://auto-kj.com/pricing"));
 }
@@ -962,16 +981,30 @@ void DlgSettings::on_btnTestReqServer_clicked() {
     m_settings.setRequestServerUrl(ui->lineEditUrl->text());
     m_settings.setRequestServerEmail(ui->lineEditEmail->text());
     m_settings.setRequestServerPassword(ui->lineEditPassword->text());
-    m_settings.setRequestServerApiKey(ui->lineEditApiKey->text());
+
+    ui->btnTestReqServer->setEnabled(false);
+    ui->btnTestReqServer->setText(tr("Testing…"));
 
     // Disconnect any previous test connections to avoid duplicate signals on repeated clicks
     static QMetaObject::Connection cFail, cSsl, cPass;
     QObject::disconnect(cFail);
     QObject::disconnect(cSsl);
     QObject::disconnect(cPass);
-    cFail = connect(&songbookApi, &AutoKJServerClient::testFailed,   this, &DlgSettings::reqSvrTestError);
-    cSsl  = connect(&songbookApi, &AutoKJServerClient::testSslError, this, &DlgSettings::reqSvrTestSslError);
-    cPass = connect(&songbookApi, &AutoKJServerClient::testPassed,   this, &DlgSettings::reqSvrTestPassed);
+    cFail = connect(&songbookApi, &AutoKJServerClient::testFailed, this, [this](QString error) {
+        ui->btnTestReqServer->setEnabled(true);
+        ui->btnTestReqServer->setText(tr("Test Connection"));
+        reqSvrTestError(error);
+    });
+    cSsl  = connect(&songbookApi, &AutoKJServerClient::testSslError, this, [this](QString error) {
+        ui->btnTestReqServer->setEnabled(true);
+        ui->btnTestReqServer->setText(tr("Test Connection"));
+        reqSvrTestSslError(error);
+    });
+    cPass = connect(&songbookApi, &AutoKJServerClient::testPassed, this, [this]() {
+        ui->btnTestReqServer->setEnabled(true);
+        ui->btnTestReqServer->setText(tr("Test Connection"));
+        reqSvrTestPassed();
+    });
     songbookApi.test();
 }
 
@@ -995,7 +1028,7 @@ void DlgSettings::reqSvrTestError(QString error) {
             DlgAddVenue dlg(this);
             dlg.setWindowTitle("Create Your First Venue");
             if (dlg.exec() == QDialog::Accepted) {
-                songbookApi.createVenue(dlg.venueName(), dlg.venueAddress(), dlg.venuePin());
+                songbookApi.createVenue(dlg.venueName(), dlg.venueAddress());
                 QMessageBox::information(this, "Venue Setup",
                                          "Venue created. Run the connection test again.");
             }
@@ -1061,9 +1094,11 @@ void DlgSettings::reqSvrTestSslError(QString error) {
 }
 
 void DlgSettings::reqSvrTestPassed() {
+    updateSubscriptionTierUi();
+
     QMessageBox msgBox;
-    msgBox.setWindowTitle("Request server test passed");
-    msgBox.setText("Request server connection test was successful.  Server info and API key appear to be valid");
+    msgBox.setWindowTitle("Connection Successful");
+    msgBox.setText("Connected to Auto-KJ server. Your account and plan details are valid.");
     msgBox.exec();
 }
 
@@ -1365,22 +1400,4 @@ void DlgSettings::on_btnSubmitChangePassword_clicked()
     } else {
         QMessageBox::warning(this, "Error", "Failed to update password:\n" + errorStr);
     }
-}
-
-
-#include <QDesktopServices>
-#include <QUrl>
-
-void DlgSettings::on_btnForgotPassword_clicked()
-{
-    QString baseUrl = m_settings.requestServerUrl();
-    if (baseUrl.endsWith("/ws/kj"))
-        baseUrl.chop(6);
-    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://"))
-        baseUrl = "https://" + baseUrl;
-        
-    // Open the browser to the online dashboard, where the forgot password flow is available.
-    // The DJ dashboard is typically hosted at the root or /dashboard.
-    // Assuming root for Auto-KJ V3 web interface.
-    QDesktopServices::openUrl(QUrl(baseUrl + "/?tab=forgot"));
 }

@@ -72,6 +72,28 @@ void AutoKJServerClientMock::authenticate()
     emit synchronized(QTime::currentTime());
 }
 
+bool AutoKJServerClientMock::changePassword(const QString &currentPassword, const QString &newPassword, QString *errorOut)
+{
+    if (currentPassword.isEmpty()) {
+        if (errorOut != nullptr) {
+            *errorOut = "Current password is required";
+        }
+        return false;
+    }
+
+    if (newPassword.isEmpty()) {
+        if (errorOut != nullptr) {
+            *errorOut = "New password is required";
+        }
+        return false;
+    }
+
+    if (errorOut != nullptr) {
+        errorOut->clear();
+    }
+    return true;
+}
+
 void AutoKJServerClientMock::refreshRequests()
 {
     emit requestsChanged(m_requests);
@@ -82,10 +104,9 @@ void AutoKJServerClientMock::refreshVenues()
     emit venuesChanged(m_venues);
 }
 
-void AutoKJServerClientMock::createVenue(const QString &name, const QString &address, const QString &pin)
+void AutoKJServerClientMock::createVenue(const QString &name, const QString &address)
 {
     Q_UNUSED(address)
-    Q_UNUSED(pin)
     OkjsVenue venue;
     venue.venueId = m_venues.size() + 1;
     venue.name = name;

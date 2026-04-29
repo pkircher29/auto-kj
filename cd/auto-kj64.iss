@@ -2,11 +2,11 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Auto-KJ"
-#define MyAppVersion "1.0.0-beta1"
+#define MyAppVersion "0.7.7"
 #define MyAppPublisher "Auto-KJ Project"
 #define MyAppURL "https://auto-kj.com/"
 #define MyAppExeName "auto-kj.exe"
-#define MyAppId "{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}"
+#define MyAppId "{F44D870A-A63F-4CBB-84AF-DAFDCE7C2A9A}"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -22,6 +22,7 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
+UsePreviousAppDir=no
 LicenseFile=Output\LICENSE.txt
 OutputBaseFilename=Auto-KJ-Windows-x64-Setup
 Compression=lzma
@@ -48,6 +49,12 @@ Source: "Output\vc_redist.x64.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\*"
+
+; Remove old OpenKJ uninstall registry keys so stale install paths don't interfere
+[Registry]
+Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Flags: deletekey uninsdeletekey
+Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Flags: deletekey uninsdeletekey
+Root: HKLM; Subkey: "SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{{474EEC43-B55A-4FCE-8E5A-4ACD90E56103}_is1"; Flags: deletekey uninsdeletekey
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
