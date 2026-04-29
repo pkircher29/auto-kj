@@ -109,6 +109,11 @@ This document outlines how to build Auto-KJ from source for Windows, macOS, and 
 
 ---
 
+## Frontend
+Auto-KJ uses **Qt Widgets** for its UI (no separate frontend like React, Vue, or Tauri). All UI code is built alongside the C++ backend.
+
+---
+
 ## Building
 
 ### CMake Configuration
