@@ -268,6 +268,7 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     ui->checkBoxFaderBm->setChecked(m_settings.audioUseFaderBm());
     ui->checkBoxDownmixBm->setChecked(m_settings.audioDownmixBm());
     ui->checkBoxSilenceDetectionBm->setChecked(m_settings.audioDetectSilenceBm());
+    ui->checkBoxTipShoutout->setChecked(m_settings.tipShoutoutEnabled());
     ui->spinBoxInterval->setValue(m_settings.requestServerInterval());
     ui->spinBoxSystemId->setMaximum(10); // AutoKJ is self-hosted; no subscription system limit
     ui->spinBoxSystemId->setValue(m_settings.systemId());
@@ -366,6 +367,7 @@ DlgSettings::DlgSettings(MediaBackend &AudioBackend, MediaBackend &BmAudioBacken
     connect(&m_settings, &Settings::showSongStopPauseWarningChanged, ui->cbxStopPauseWarning, &QCheckBox::setChecked);
     connect(ui->cbxIgnoreApos, &QCheckBox::toggled, &m_settings, &Settings::setIgnoreAposInSearch);
     connect(ui->cbxCrossFade, &QCheckBox::toggled, &m_settings, &Settings::setBmKCrossfade);
+    connect(ui->checkBoxTipShoutout, &QCheckBox::toggled, &m_settings, &Settings::setTipShoutoutEnabled);
     connect(ui->cbxCheckUpdates, &QCheckBox::toggled, &m_settings, &Settings::setCheckUpdates);
     connect(ui->comboBoxUpdateBranch, qOverload<int>(&QComboBox::currentIndexChanged), &m_settings,
             &Settings::setUpdatesBranch);

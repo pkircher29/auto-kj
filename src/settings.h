@@ -465,6 +465,8 @@ public slots:
     void setTipNotificationEnabled(bool enabled);
     bool tipSoundEnabled() const;
     void setTipSoundEnabled(bool enabled);
+    bool tipShoutoutEnabled() const;
+    void setTipShoutoutEnabled(bool enabled);
     int tipTotalCents() const;
     void setTipTotalCents(int cents);
 
@@ -483,6 +485,7 @@ public slots:
 signals:
     void tipNotificationEnabledChanged(bool enabled);
     void tipSoundEnabledChanged(bool enabled);
+    void tipShoutoutEnabledChanged(bool enabled);
 
     // Internal helper for DJ-specific settings
     QString djKey(const QString &baseKey) const;

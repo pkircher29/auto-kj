@@ -1305,6 +1305,12 @@ void MainWindow::setupConnections() {
         if (m_settings.tipSoundEnabled())
             QApplication::beep();
 
+        // Shout-out on the CDG secondary display
+        if (m_settings.tipShoutoutEnabled()) {
+            QString amountStr = QString("$%1").arg(tip.amountCents / 100.0, 0, 'f', 2);
+            cdgWindow->showTipShoutout(tip.singerName, amountStr, tip.message);
+        }
+
         // Persist running total
         int total = m_settings.tipTotalCents() + tip.amountCents;
         m_settings.setTipTotalCents(total);

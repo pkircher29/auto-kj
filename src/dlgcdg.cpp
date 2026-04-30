@@ -23,6 +23,7 @@
 #include <QDesktopWidget>
 #include <QSvgRenderer>
 #include <QPainter>
+#include <QTimer>
 #include <QDir>
 #include <QImageReader>
 #include <QScreen>
@@ -199,6 +200,49 @@ void DlgCdg::setNextSinger(const QString &name)
 void DlgCdg::setNextSong(const QString &song)
 {
     ui->lblNextSong->setText(song);
+}
+
+void DlgCdg::showTipShoutout(const QString &singerName, const QString &amountStr, const QString &message)
+{
+    if (!m_settings.karaokeAAAlertEnabled())
+        return;
+
+    // Save current alert state for restoration
+    QString savedNextSinger = ui->lblNextSinger->text();
+    QString savedNextSong = ui->lblNextSong->text();
+    QString savedLabel = ui->label->text();
+    bool wasVisible = ui->widgetAlert->isVisible();
+    int savedCountdownPos = m_countdownPos;
+    bool countdownWasRunning = m_timerAlertCountdown.isActive();
+    m_timerAlertCountdown.stop();
+
+    // Build shout-out text
+    QString shoutText = QString::fromUtf8("🎉 Tip from %1 — %2!")
+                            .arg(singerName, amountStr);
+    ui->label->setText("🎤 TIP SHOUT-OUT");
+    ui->lblNextSinger->setText(shoutText);
+    ui->lblNextSong->setText(message.isEmpty()
+        ? QString::fromUtf8("Thanks for the support! 🙌")
+        : QString::fromUtf8("\"%1\"").arg(message));
+    ui->lblSeconds->setText("");
+    showAlert(true);
+
+    // Auto-revert after 7 seconds
+    QTimer::singleShot(7000, this, [this, wasVisible, savedNextSinger, savedNextSong,
+                                      savedLabel, savedCountdownPos, countdownWasRunning]() {
+        ui->label->setText(savedLabel);
+        ui->lblNextSinger->setText(savedNextSinger);
+        ui->lblNextSong->setText(savedNextSong);
+        if (countdownWasRunning) {
+            m_countdownPos = savedCountdownPos;
+            ui->lblSeconds->setText(QString::number(savedCountdownPos) + tr(" seconds"));
+            m_timerAlertCountdown.start();
+        }
+        if (!wasVisible)
+            showAlert(false);
+        else
+            ui->widgetAlert->repaint();
+    });
 }
 
 void DlgCdg::setCountdownSecs(int seconds)

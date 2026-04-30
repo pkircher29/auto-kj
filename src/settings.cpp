@@ -2077,6 +2077,17 @@ void Settings::setTipSoundEnabled(bool enabled)
     emit tipSoundEnabledChanged(enabled);
 }
 
+bool Settings::tipShoutoutEnabled() const
+{
+    return settings->value("tipShoutoutEnabled", true).toBool();
+}
+
+void Settings::setTipShoutoutEnabled(bool enabled)
+{
+    settings->setValue("tipShoutoutEnabled", enabled);
+    emit tipShoutoutEnabledChanged(enabled);
+}
+
 int Settings::tipTotalCents() const
 {
     return settings->value("tipTotalCents", 0).toInt();

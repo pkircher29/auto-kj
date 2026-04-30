@@ -101,6 +101,7 @@ public slots:
     void showAlert(bool show);
     void setNextSinger(const QString &name);
     void setNextSong(const QString &song);
+    void showTipShoutout(const QString &singerName, const QString &amountStr, const QString &message);
     void setCountdownSecs(int seconds);
     void applyBackgroundImageMode();
     void timerSlideShowTimeout();

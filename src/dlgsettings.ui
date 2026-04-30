@@ -208,6 +208,16 @@
                  </widget>
                 </item>
                 <item>
+                 <widget class="QCheckBox" name="checkBoxTipShoutout">
+                  <property name="toolTip">
+                   <string>Show a tip shout-out overlay on the CDG display when a tip is received</string>
+                  </property>
+                  <property name="text">
+                   <string>Tip shout-out on karaoke display</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
                  <spacer name="verticalSpacer">
                   <property name="orientation">
                    <enum>Qt::Vertical</enum>
