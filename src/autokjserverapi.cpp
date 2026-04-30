@@ -411,6 +411,19 @@ void AutoKJServerAPI::handleEvent(const QString &event, const QJsonObject &data)
         return;
     }
 
+    if (event == "tip:new")
+    {
+        TipData tip;
+        tip.singerName  = data.value("singer_name").toString();
+        tip.amountCents = data.value("amount_cents").toInt(0);
+        tip.message     = data.value("message").toString();
+        tip.currency    = data.value("currency").toString("USD");
+        qInfo("[AutoKJ] Tip received: %s tipped %d cents",
+              qPrintable(tip.singerName), tip.amountCents);
+        emit tipReceived(tip);
+        return;
+    }
+
     if (event == "server:kj_web_command")
     {
         // Commands from the KJ web tablet interface are handled by MainWindow.

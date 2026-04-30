@@ -82,9 +82,18 @@ public:
     virtual void fetchCheckins() = 0;
     virtual void markCheckinAdded(const QString &checkinId) = 0;
 
+    /** Data for an incoming tip */
+    struct TipData {
+        QString singerName;
+        int amountCents{0};
+        QString message;
+        QString currency{"USD"};
+    };
+
 signals:
     void requestsChanged(OkjsRequests requests);
     void venuesChanged(const OkjsVenues &venues);
+    void tipReceived(const AutoKJServerClient::TipData &tip);
     void venuesRefreshFailed(QString error);
     void startNewShowFinished(bool ok, QString error);
     void endActiveShowFinished(bool ok, QString error);

@@ -567,6 +567,7 @@ set(SOURCE_FILES
         src/artistcache.cpp
         src/newsingeralert.cpp
         src/dlgeditsong.cpp
+        src/tippanel.cpp
         src/soundfxbutton.cpp
         src/runguard/runguard.cpp
         src/durationlazyupdater.cpp
@@ -640,6 +641,7 @@ set(SOURCE_FILES
         src/artistcache.h
         src/newsingeralert.h
         src/dlgeditsong.h
+        src/tippanel.h
         src/soundfxbutton.h
         src/runguard/runguard.h
         src/models/tableviewtooltipfilter.h

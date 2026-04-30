@@ -2055,6 +2055,38 @@ void Settings::setSystemId(int id)
     return settings->setValue("systemId", id);
 }
 
+bool Settings::tipNotificationEnabled() const
+{
+    return settings->value("tipNotificationEnabled", true).toBool();
+}
+
+void Settings::setTipNotificationEnabled(bool enabled)
+{
+    settings->setValue("tipNotificationEnabled", enabled);
+    emit tipNotificationEnabledChanged(enabled);
+}
+
+bool Settings::tipSoundEnabled() const
+{
+    return settings->value("tipSoundEnabled", true).toBool();
+}
+
+void Settings::setTipSoundEnabled(bool enabled)
+{
+    settings->setValue("tipSoundEnabled", enabled);
+    emit tipSoundEnabledChanged(enabled);
+}
+
+int Settings::tipTotalCents() const
+{
+    return settings->value("tipTotalCents", 0).toInt();
+}
+
+void Settings::setTipTotalCents(int cents)
+{
+    settings->setValue("tipTotalCents", cents);
+}
+
 void Settings::setCdgRemainEnabled(bool enabled)
 {
     settings->setValue("cdgRemainEnabled", enabled);

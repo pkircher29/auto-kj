@@ -66,6 +66,7 @@
 #include "rotationfairnessengine.h"
 #include "autobackupmanager.h"
 #include "newsingeralert.h"
+#include "tippanel.h"
 #include <spdlog/async_logger.h>
 #include <memory>
 #include <random>
@@ -177,6 +178,7 @@ private:
     RotationFairnessEngine m_fairnessEngine{m_rotModel, m_settings, this};
     AutoBackupManager *m_autoBackupManager{nullptr};
     NewSingerAlert *m_newSingerAlert{nullptr};
+    TipPanel *m_tipPanel{nullptr};
     QWidget *m_historyTabWidget;
     std::mt19937_64 rng;
 

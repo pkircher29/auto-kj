@@ -21,6 +21,7 @@
 #include <qglobal.h>
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QApplication>
 #include <QMessageBox>
 #include <QDesktopWidget>
 #include <QMenu>
@@ -1290,6 +1291,24 @@ void MainWindow::setupConnections() {
     connect(&m_settings, &Settings::requestServerVenueChanged, this, [this]() { m_songbookApi.reconfigureFromSettings(); });
     connect(&m_settings, &Settings::venueConfigChanged, &m_songbookApi, &AutoKJServerClient::pushVenueConfig);
     connect(&m_settings, &Settings::gigSettingsChanged, &m_songbookApi, &AutoKJServerClient::pushGigSettings);
+
+    // ── Tip/Payment notifications ───────────────────────────────────────
+    m_tipPanel = new TipPanel(this);
+    connect(&m_songbookApi, &AutoKJServerClient::tipReceived, this, [this](const AutoKJServerClient::TipData &tip) {
+        if (!m_settings.tipNotificationEnabled())
+            return;
+        qInfo("[MainWindow] Tip notification: %s (%d cents, %s)",
+              qPrintable(tip.singerName), tip.amountCents, qPrintable(tip.currency));
+        m_tipPanel->showTip(tip.singerName, tip.amountCents, tip.message, tip.currency);
+
+        // Sound effect
+        if (m_settings.tipSoundEnabled())
+            QApplication::beep();
+
+        // Persist running total
+        int total = m_settings.tipTotalCents() + tip.amountCents;
+        m_settings.setTipTotalCents(total);
+    });
 
     ui->menuTools->addSeparator();
 

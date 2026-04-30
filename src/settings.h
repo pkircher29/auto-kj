@@ -459,6 +459,16 @@ public slots:
     void setVideoOffsetMs(int offset);
     void setLastSingerAddPositionType(int type);
     void setNoShowTimeoutSeconds(int seconds);
+
+    // ── Tip/Payment settings ────────────────────────────────────────────
+    bool tipNotificationEnabled() const;
+    void setTipNotificationEnabled(bool enabled);
+    bool tipSoundEnabled() const;
+    void setTipSoundEnabled(bool enabled);
+    int tipTotalCents() const;
+    void setTipTotalCents(int cents);
+
+
     void setKjBufferSeconds(int seconds);
     void setLineJumpEnabled(bool enabled);
     void setLimitOneSongPerSinger(bool enabled);
@@ -469,6 +479,10 @@ public slots:
     void setVenueLat(double lat);
     void setVenueAddress(const QString &address);
     // KJ PIN removed — singers use nearby/QR/slug to find venues
+
+signals:
+    void tipNotificationEnabledChanged(bool enabled);
+    void tipSoundEnabledChanged(bool enabled);
 
     // Internal helper for DJ-specific settings
     QString djKey(const QString &baseKey) const;
