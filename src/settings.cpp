@@ -931,6 +931,16 @@ bool Settings::tickerEnabled()
     return settings->value("tickerEnabled", false).toBool();
 }
 
+bool Settings::newSingerAlertsEnabled()
+{
+    return settings->value("newSingerAlertsEnabled", true).toBool();
+}
+
+void Settings::setNewSingerAlertsEnabled(bool enable)
+{
+    settings->setValue("newSingerAlertsEnabled", enable);
+}
+
 QString Settings::tickerCustomString()
 {
     return settings->value("tickerCustomString", "").toString();
