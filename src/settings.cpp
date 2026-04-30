@@ -2139,6 +2139,16 @@ void Settings::setVenueGeofenceEnabled(bool enabled) {
 
 // KJ PIN removed — singers find venues via nearby/QR/slug, not a numeric code
 
+int Settings::rotationStyle() const {
+    return settings->value(djKey("rotationStyle"), 0).toInt();
+}
+
+void Settings::setRotationStyle(int style) {
+    settings->setValue(djKey("rotationStyle"), style);
+    emit rotationStyleChanged(style);
+    emit gigSettingsChanged();
+}
+
 bool Settings::blockRepeatSongs() const {
     return settings->value(djKey("blockRepeatSongs"), true).toBool();
 }

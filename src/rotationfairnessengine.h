@@ -4,18 +4,34 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QMap>
 #include "models/tablemodelrotation.h"
 #include "settings.h"
 
 class RotationFairnessEngine : public QObject {
     Q_OBJECT
 public:
+    // Rotation style constants
+    enum RotationStyle {
+        Classic = 0,
+        Double = 1,
+        Flex = 2
+    };
+
     explicit RotationFairnessEngine(TableModelRotation &rotModel, Settings &settings, QObject *parent = nullptr);
 
     struct SongPlayedTonightResult {
         bool blocked;
         QString singerName;
     };
+
+    // Set the rotation style for the current gig
+    void setRotationStyle(int style);
+    int rotationStyle() const;
+
+    // Per-singer rotation style overrides (Flex mode)
+    void setSingerRotationStyle(int singerId, RotationStyle style);
+    RotationStyle singerRotationStyle(int singerId) const;
 
     // Called when a song is marked as played
     void onSongPlayed(int primarySingerId, const QStringList &cosingers);
@@ -48,9 +64,28 @@ public:
     // Reload state from DB (call after DB is open)
     void loadState();
 
+    // Get the effective rotation style for a singer (handles Flex per-singer overrides)
+    int effectiveStyleForSinger(int singerId) const;
+
+    // Check if a singer has completed their turn (for Double/Flex modes)
+    bool isSingerTurnComplete(int singerId) const;
+
+    // Reset turn counters (called when a singer completes their turn)
+    void resetSingerTurnCounter(int singerId);
+
 private:
     TableModelRotation &m_rotModel;
     Settings &m_settings;
+
+    // Rotation style for the current gig
+    int m_rotationStyle{Classic};
+
+    // Per-singer rotation style overrides (Flex mode only)
+    QMap<int, RotationStyle> m_singerRotationStyles;
+
+    // Per-singer songs-sung-this-turn counter (for Double/Flex)
+    QMap<int, int> m_singerSongsThisTurn;
+
     [[nodiscard]] QString canonicalSongKeyForSongId(int songId) const;
 
     // Mark a singer as having sung this round

@@ -192,6 +192,10 @@ public:
     // Max singers per request (solo, duet, etc. - default 4)
     int maxSingersPerRequest() const;
     void setMaxSingersPerRequest(int max);
+    // Rotation style (0=Classic, 1=Double, 2=Flex)
+    int rotationStyle() const;
+    void setRotationStyle(int style);
+
     // Fairness engine settings
     bool fairnessEnabled() const;
     void setFairnessEnabled(bool enabled);
@@ -377,6 +381,7 @@ signals:
     void lastSingerAddPositionTypeChanged(int type);
     void venueConfigChanged();
     void gigSettingsChanged();
+    void rotationStyleChanged(int style);
     void djListChanged();
     void activeDjChanged(const QString &dj);
     void shortcutsChanged();

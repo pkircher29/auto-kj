@@ -920,6 +920,9 @@ void MainWindow::setupConnections() {
     connect(&m_mediaBackendSfx, &MediaBackend::durationChanged, this, &MainWindow::sfxAudioBackend_durationChanged);
     connect(&m_mediaBackendSfx, &MediaBackend::stateChanged, this, &MainWindow::sfxAudioBackend_stateChanged);
     connect(&m_rotModel, &TableModelRotation::rotationModified, this, &MainWindow::rotationDataChanged, Qt::QueuedConnection);
+    connect(&m_settings, &Settings::rotationStyleChanged, this, [&](int style) {
+        m_fairnessEngine.setRotationStyle(style);
+    });
     connect(ui->pushButtonTempoDn, &QPushButton::clicked, ui->spinBoxTempo, &QSpinBox::stepDown);
     connect(ui->pushButtonTempoUp, &QPushButton::clicked, ui->spinBoxTempo, &QSpinBox::stepUp);
     connect(ui->pushButtonKeyDn, &QPushButton::clicked, ui->spinBoxKey, &QSpinBox::stepDown);
@@ -1665,6 +1668,7 @@ void MainWindow::dbInit(const QDir &okjDataDir) {
         m_logger->info("{} DB Schema update to v112 completed", m_loggingPrefix);
     }
     m_fairnessEngine.loadState();
+    m_fairnessEngine.setRotationStyle(m_settings.rotationStyle());
     m_karaokeSongsModel.refreshFairnessState();
 }
 

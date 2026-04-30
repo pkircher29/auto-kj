@@ -8,6 +8,64 @@
 RotationFairnessEngine::RotationFairnessEngine(TableModelRotation &rotModel, Settings &settings, QObject *parent)
     : QObject(parent), m_rotModel(rotModel), m_settings(settings) {}
 
+void RotationFairnessEngine::setRotationStyle(int style) {
+    m_rotationStyle = qBound(0, style, 2);
+    m_singerRotationStyles.clear();
+    m_singerSongsThisTurn.clear();
+    qInfo("[FairnessEngine] Rotation style set to: %d (%s)",
+          m_rotationStyle,
+          m_rotationStyle == Classic ? "Classic" :
+          m_rotationStyle == Double ? "Double" : "Flex");
+}
+
+int RotationFairnessEngine::rotationStyle() const {
+    return m_rotationStyle;
+}
+
+void RotationFairnessEngine::setSingerRotationStyle(int singerId, RotationStyle style) {
+    if (m_rotationStyle == Flex) {
+        m_singerRotationStyles[singerId] = style;
+        m_singerSongsThisTurn.remove(singerId);
+        qInfo("[FairnessEngine] Singer %d set to %s", singerId,
+              style == Classic ? "Classic" : "Double");
+    }
+}
+
+RotationFairnessEngine::RotationStyle RotationFairnessEngine::singerRotationStyle(int singerId) const {
+    return static_cast<RotationStyle>(effectiveStyleForSinger(singerId));
+}
+
+int RotationFairnessEngine::effectiveStyleForSinger(int singerId) const {
+    if (m_rotationStyle == Flex) {
+        auto it = m_singerRotationStyles.constFind(singerId);
+        if (it != m_singerRotationStyles.constEnd())
+            return *it;
+        return Classic; // default to Classic in Flex if no override
+    }
+    return m_rotationStyle;
+}
+
+void RotationFairnessEngine::resetSingerTurnCounter(int singerId) {
+    m_singerSongsThisTurn.remove(singerId);
+}
+
+bool RotationFairnessEngine::isSingerTurnComplete(int singerId) const {
+    int style = effectiveStyleForSinger(singerId);
+    if (style == Classic)
+        return true; // Classic: always complete after 1 song
+    if (style == Double) {
+        int songsThisTurn = m_singerSongsThisTurn.value(singerId, 0);
+        return songsThisTurn >= 2;
+    }
+    // Flex: check per-singer override
+    auto it = m_singerRotationStyles.constFind(singerId);
+    RotationStyle perSingerStyle = (it != m_singerRotationStyles.constEnd()) ? *it : Classic;
+    if (perSingerStyle == Classic)
+        return true;
+    int songsThisTurn = m_singerSongsThisTurn.value(singerId, 0);
+    return songsThisTurn >= 2;
+}
+
 void RotationFairnessEngine::loadState() {
     // Ensure rotation_meta table has the current_round row
     QSqlQuery q;
@@ -64,6 +122,14 @@ QString RotationFairnessEngine::duplicateTurnWarning(const QString &singerName) 
 
 void RotationFairnessEngine::onSongPlayed(int primarySingerId, const QStringList &cosingers) {
     markSungThisRound(primarySingerId);
+
+    // Track songs-sung-this-turn for Double/Flex modes
+    int style = effectiveStyleForSinger(primarySingerId);
+    if (style == Double || style == Flex) {
+        m_singerSongsThisTurn[primarySingerId] = m_singerSongsThisTurn.value(primarySingerId, 0) + 1;
+        qInfo("[FairnessEngine] Singer %d songs this turn: %d", primarySingerId,
+              m_singerSongsThisTurn.value(primarySingerId, 0));
+    }
 
     for (const QString &name : cosingers) {
         int id = resolveNameToId(name);
@@ -128,6 +194,8 @@ void RotationFairnessEngine::advanceRound() {
     QSqlQuery q;
     q.exec("UPDATE rotationsingers SET sung_this_round = 0");
     q.exec("UPDATE rotation_meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key = 'current_round'");
+    // Reset turn counters for all singers
+    m_singerSongsThisTurn.clear();
     spdlog::get("logger")->info("[FairnessEngine] Round advanced to {}", currentRound());
     emit m_rotModel.rotationModified();
 }

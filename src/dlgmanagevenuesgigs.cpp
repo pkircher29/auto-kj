@@ -2,6 +2,7 @@
 #include "dlgaddvenue.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDate>
 #include <QDateEdit>
 #include <QDialogButtonBox>
@@ -38,7 +39,7 @@ public:
     explicit ShowtimeDialog(QWidget *parent = nullptr) : QDialog(parent)
     {
         setWindowTitle("Showtime");
-        resize(420, 240);
+        resize(420, 320);
         auto *layout = new QVBoxLayout(this);
 
         m_weekly = new QRadioButton("Weekly repeating", this);
@@ -66,6 +67,22 @@ public:
         form->addRow("Start time:", m_start);
         form->addRow("End time:", m_end);
         layout->addLayout(form);
+
+        // Rotation style selector
+        auto *rotGroup = new QGroupBox("Rotation Style", this);
+        auto *rotLayout = new QVBoxLayout(rotGroup);
+        m_rotationStyle = new QComboBox(this);
+        m_rotationStyle->addItem("Classic (1 per round)", 0);
+        m_rotationStyle->addItem("Double (2 per round)", 1);
+        m_rotationStyle->addItem("Flex (mixed)", 2);
+        rotLayout->addWidget(m_rotationStyle);
+        auto *rotHelp = new QLabel(
+            "<small><b>Classic:</b> singers rotate one-at-a-time<br>"
+            "<b>Double:</b> each singer gets 2 consecutive slots<br>"
+            "<b>Flex:</b> mix 1-per-round and 2-per-round per singer</small>", this);
+        rotHelp->setWordWrap(true);
+        rotLayout->addWidget(rotHelp);
+        layout->addWidget(rotGroup);
 
         auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
         layout->addWidget(buttons);
@@ -107,6 +124,12 @@ public:
         }
         m_start->setTime(QTime::fromString(obj.value("start").toString("20:00"), "HH:mm"));
         m_end->setTime(QTime::fromString(obj.value("end").toString("00:00"), "HH:mm"));
+
+        // Restore rotation style (defaults to Classic)
+        int rotStyle = obj.value("rotation_style").toInt(0);
+        int idx = m_rotationStyle->findData(rotStyle);
+        if (idx >= 0)
+            m_rotationStyle->setCurrentIndex(idx);
     }
 
     QJsonObject toJson() const
@@ -114,6 +137,7 @@ public:
         QJsonObject obj;
         obj["start"] = m_start->time().toString("HH:mm");
         obj["end"] = m_end->time().toString("HH:mm");
+        obj["rotation_style"] = m_rotationStyle->currentData().toInt();
 
         if (m_oneTime->isChecked()) {
             obj["type"] = "one_time";
@@ -130,6 +154,8 @@ public:
         return obj;
     }
 
+    int rotationStyle() const { return m_rotationStyle->currentData().toInt(); }
+
 private:
     QRadioButton *m_weekly{nullptr};
     QRadioButton *m_oneTime{nullptr};
@@ -137,6 +163,7 @@ private:
     QDateEdit *m_date{nullptr};
     QTimeEdit *m_start{nullptr};
     QTimeEdit *m_end{nullptr};
+    QComboBox *m_rotationStyle{nullptr};
 };
 
 QString showtimeLabel(const QJsonObject &obj)

@@ -21,7 +21,6 @@
 #include "autozipper.h"
 #include "mzarchive.h"
 #include <QDir>
-#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QSqlQuery>
@@ -68,6 +67,14 @@ bool AutoZipper::wasAlreadyImported(const QString &sourceZipPath)
     return false;
 }
 
+static void cleanupTempDir(const QString &dirPath)
+{
+    QDir dir(dirPath);
+    if (!dir.exists())
+        return;
+    dir.removeRecursively();
+}
+
 void AutoZipper::markImported(const QString &sourceZipPath)
 {
     ensureTables();
@@ -109,7 +116,7 @@ ExtractedFiles AutoZipper::extract(const QString &sourceZipPath)
 
     if (!archive.isValidKaraokeFile()) {
         m_logger->error("{} Invalid karaoke zip: {} - {}", m_loggingPrefix, sourceZipPath.toStdString(), archive.getLastError().toStdString());
-        QDir(destDir).removeRecursively();
+        cleanupTempDir(destDir);
         return result;
     }
 
@@ -117,7 +124,7 @@ ExtractedFiles AutoZipper::extract(const QString &sourceZipPath)
     QString audioExt = archive.audioExtension();
     if (audioExt.isEmpty()) {
         m_logger->error("{} No audio file found in zip: {}", m_loggingPrefix, sourceZipPath.toStdString());
-        QDir(destDir).removeRecursively();
+        cleanupTempDir(destDir);
         return result;
     }
 
@@ -125,7 +132,7 @@ ExtractedFiles AutoZipper::extract(const QString &sourceZipPath)
     QString cdgDest = baseName + ".cdg";
     if (!archive.extractCdg(destDir, cdgDest)) {
         m_logger->error("{} Failed to extract CDG from: {}", m_loggingPrefix, sourceZipPath.toStdString());
-        QDir(destDir).removeRecursively();
+        cleanupTempDir(destDir);
         return result;
     }
 
@@ -133,7 +140,7 @@ ExtractedFiles AutoZipper::extract(const QString &sourceZipPath)
     QString audioDest = baseName + audioExt;
     if (!archive.extractAudio(destDir, audioDest)) {
         m_logger->error("{} Failed to extract audio from: {}", m_loggingPrefix, sourceZipPath.toStdString());
-        QDir(destDir).removeRecursively();
+        cleanupTempDir(destDir);
         return result;
     }
 
