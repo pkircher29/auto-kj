@@ -26,6 +26,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/async_logger.h>
 #include <spdlog/fmt/ostr.h>
+#include <gst/gst.h>
 
 std::ostream& operator<<(std::ostream& os, const QString& s);
 
@@ -45,6 +46,9 @@ public:
 
     /// Check if a file has already been normalized (contains _normalized suffix).
     static bool isNormalized(const QString &audioPath);
+
+    /// GStreamer pad-added callback for decodebin → audioconvert linking.
+    static void padAddedCallback(GstElement *src, GstPad *newPad, gpointer userData);
 
 private:
     std::string m_loggingPrefix{"[VolumeNormalizer]"};

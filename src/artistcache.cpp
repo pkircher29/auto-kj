@@ -19,6 +19,7 @@
 */
 
 #include "artistcache.h"
+#include <QDebug>
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QApplication>

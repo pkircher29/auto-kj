@@ -23,6 +23,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QDebug>
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QStandardPaths>

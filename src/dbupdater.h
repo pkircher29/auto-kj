@@ -37,6 +37,9 @@ class DbUpdater : public QObject
 {
     Q_OBJECT
 
+public:
+    ~DbUpdater() override;
+
 private:
 
     struct DbSongRecord {

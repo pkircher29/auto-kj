@@ -19,6 +19,7 @@
 */
 
 #include "volumenormalizer.h"
+#include <QDir>
 #include <QFileInfo>
 #include <gst/gst.h>
 #include <gst/audio/audio.h>
@@ -33,6 +34,23 @@ VolumeNormalizer::VolumeNormalizer(QObject *parent)
 bool VolumeNormalizer::isNormalized(const QString &audioPath)
 {
     return audioPath.contains("_normalized");
+}
+
+void VolumeNormalizer::padAddedCallback(GstElement * /*src*/, GstPad *newPad, gpointer userData)
+{
+    GstElement *convert = GST_ELEMENT(userData);
+    GstPad *sinkPad = gst_element_get_static_pad(convert, "sink");
+    if (gst_pad_is_linked(sinkPad)) {
+        gst_object_unref(sinkPad);
+        return;
+    }
+    GstCaps *caps = gst_pad_get_current_caps(newPad);
+    GstStructure *structure = gst_caps_get_structure(caps, 0);
+    if (gst_structure_has_name(structure, "audio/x-raw")) {
+        gst_pad_link(newPad, sinkPad);
+    }
+    gst_caps_unref(caps);
+    gst_object_unref(sinkPad);
 }
 
 double VolumeNormalizer::analyzePeak(const QString &audioPath)
@@ -68,22 +86,7 @@ double VolumeNormalizer::analyzePeak(const QString &audioPath)
     }
 
     // Connect decodebin's pad-added to link to audioconvert
-    auto padAddedCb = [](GstElement *src, GstPad *newPad, gpointer userData) {
-        GstElement *convert = GST_ELEMENT(userData);
-        GstPad *sinkPad = gst_element_get_static_pad(convert, "sink");
-        if (gst_pad_is_linked(sinkPad)) {
-            gst_object_unref(sinkPad);
-            return;
-        }
-        GstCaps *caps = gst_pad_get_current_caps(newPad);
-        GstStructure *structure = gst_caps_get_structure(caps, 0);
-        if (gst_structure_has_name(structure, "audio/x-raw")) {
-            gst_pad_link(newPad, sinkPad);
-        }
-        gst_caps_unref(caps);
-        gst_object_unref(sinkPad);
-    };
-    g_signal_connect(decode, "pad-added", G_CALLBACK(padAddedCb), convert);
+    g_signal_connect(decode, "pad-added", G_CALLBACK(VolumeNormalizer::padAddedCallback), convert);
 
     if (!gst_element_link_many(convert, level, sink, nullptr)) {
         m_logger->error("{} Failed to link convert → level → sink", m_loggingPrefix);
@@ -206,32 +209,7 @@ bool VolumeNormalizer::applyGain(const QString &inputPath, const QString &output
     }
 
     // Connect decodebin pad-added to audioconvert
-    struct CbData {
-        GstElement *convert;
-        std::shared_ptr<spdlog::logger> logger;
-        std::string prefix;
-    };
-    CbData *data = new CbData{convert, m_logger, m_loggingPrefix};
-
-    auto padAddedCb = [](GstElement *src, GstPad *newPad, gpointer userData) {
-        auto *data = static_cast<CbData*>(userData);
-        GstPad *sinkPad = gst_element_get_static_pad(data->convert, "sink");
-        if (gst_pad_is_linked(sinkPad)) {
-            gst_object_unref(sinkPad);
-            return;
-        }
-        GstCaps *caps = gst_pad_get_current_caps(newPad);
-        GstStructure *structure = gst_caps_get_structure(caps, 0);
-        if (gst_structure_has_name(structure, "audio/x-raw")) {
-            gst_pad_link(newPad, sinkPad);
-        } else {
-            data->logger->warn("{} decodebin produced non-audio pad: {}", data->prefix, gst_structure_get_name(structure));
-        }
-        gst_caps_unref(caps);
-        gst_object_unref(sinkPad);
-    };
-    g_signal_connect_data(decode, "pad-added", G_CALLBACK(padAddedCb), data,
-                          (GClosureNotify)([](gpointer d) { delete static_cast<CbData*>(d); }), (GConnectFlags)0);
+    g_signal_connect(decode, "pad-added", G_CALLBACK(VolumeNormalizer::padAddedCallback), convert);
 
     if (!gst_element_link_many(convert, amplify, encoder, sink, nullptr)) {
         m_logger->error("{} Failed to link convert → amplify → encoder → sink", m_loggingPrefix);

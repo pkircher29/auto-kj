@@ -35,6 +35,8 @@
 #include "artistcache.h"
 #include <memory>
 
+DbUpdater::~DbUpdater() = default;
+
 DbUpdater::DbUpdater(QObject *parent) :
     QObject(parent),
     m_autoZipper(std::make_unique<AutoZipper>(this)),
