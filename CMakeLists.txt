@@ -565,6 +565,7 @@ set(SOURCE_FILES
         src/autozipper.cpp
         src/volumenormalizer.cpp
         src/artistcache.cpp
+        src/newsingeralert.cpp
         src/dlgeditsong.cpp
         src/soundfxbutton.cpp
         src/runguard/runguard.cpp
@@ -637,6 +638,7 @@ set(SOURCE_FILES
         src/autozipper.h
         src/volumenormalizer.h
         src/artistcache.h
+        src/newsingeralert.h
         src/dlgeditsong.h
         src/soundfxbutton.h
         src/runguard/runguard.h

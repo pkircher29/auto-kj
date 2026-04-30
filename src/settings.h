@@ -135,6 +135,8 @@ public:
     void setTickerShowNumSingers(int limit);
     void setTickerEnabled(bool enable);
     bool tickerEnabled();
+    bool newSingerAlertsEnabled();
+    void setNewSingerAlertsEnabled(bool enable);
     QString tickerCustomString();
     void setTickerCustomString(const QString &value);
     bool tickerShowRotationInfo();

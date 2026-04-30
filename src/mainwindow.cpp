@@ -622,6 +622,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     setMouseTracking(true);
     m_lazyDurationUpdater = std::make_unique<LazyDurationUpdateController>(this);
+    m_newSingerAlert = new NewSingerAlert(m_settings, this);
     ui->tableViewBmPlaylist->setMouseTracking(true);
     m_historyTabWidget = ui->tabWidgetQueue->widget(1);
     ui->actionShow_Debug_Log->setChecked(m_settings.logShow());
@@ -1913,6 +1914,8 @@ void MainWindow::tableViewDbDoubleClicked(const QModelIndex &index) {
         connect(addSongDlg, &DlgAddSong::newSingerAdded, [&](auto pos) {
             ui->tableViewRotation->selectRow(pos);
             ui->lineEdit->setFocus();
+            if (m_newSingerAlert)
+                m_newSingerAlert->notifyNewSinger(m_rotModel.getSingerAtPosition(pos).name, this);
         });
         addSongDlg->setModal(true);
         addSongDlg->show();
@@ -4936,6 +4939,8 @@ void MainWindow::showAddSingerDialog() {
         connect(dlgAddSinger, &DlgAddSinger::newSingerAdded, [&](auto pos) {
             ui->tableViewRotation->selectRow(pos);
             ui->lineEdit->setFocus();
+            if (m_newSingerAlert)
+                m_newSingerAlert->notifyNewSinger(m_rotModel.getSingerAtPosition(pos).name, this);
         });
         dlgAddSinger->show();
     } else
