@@ -323,7 +323,7 @@ void DlgManageVenuesGigs::loadVenues()
 {
     int status = 0;
     QString error;
-    const QJsonDocument doc = requestJson("/api/v1/kj/venues", "GET", {}, &status, &error);
+    const QJsonDocument doc = requestJson("/api/v1/venues", "GET", {}, &status, &error);
     if (status < 200 || status >= 300 || !doc.isArray()) {
         m_statusLabel->setText("Could not load venues: " + (error.isEmpty() ? "Unexpected response." : error));
         return;
@@ -402,7 +402,7 @@ void DlgManageVenuesGigs::addVenue()
 
     int status = 0;
     QString error;
-    requestJson("/api/v1/kj/venues", "POST", payload, &status, &error);
+    requestJson("/api/v1/venues", "POST", payload, &status, &error);
     if (status < 200 || status >= 300) {
         QMessageBox::warning(this, "Add Venue Failed", error.isEmpty() ? "Unexpected response." : error);
         return;
@@ -445,7 +445,7 @@ void DlgManageVenuesGigs::editVenue()
 
     int status = 0;
     QString error;
-    requestJson(QString("/api/v1/kj/venues/%1").arg(venueId), "PATCH", payload, &status, &error);
+    requestJson(QString("/api/v1/venues/%1").arg(venueId), "PATCH", payload, &status, &error);
     if (status < 200 || status >= 300) {
         QMessageBox::warning(this, "Edit Venue Failed", error.isEmpty() ? "Unexpected response." : error);
         return;
@@ -473,7 +473,7 @@ void DlgManageVenuesGigs::removeVenue()
 
     int status = 0;
     QString error;
-    requestJson(QString("/api/v1/kj/venues/%1").arg(venueId), "DELETE", {}, &status, &error);
+    requestJson(QString("/api/v1/venues/%1").arg(venueId), "DELETE", {}, &status, &error);
     if (status < 200 || status >= 300) {
         QMessageBox::warning(this, "Remove Venue Failed", error.isEmpty() ? "Unexpected response." : error);
         return;
