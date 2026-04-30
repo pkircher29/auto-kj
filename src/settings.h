@@ -487,6 +487,7 @@ signals:
     void tipSoundEnabledChanged(bool enabled);
     void tipShoutoutEnabledChanged(bool enabled);
 
+private:
     // Internal helper for DJ-specific settings
     QString djKey(const QString &baseKey) const;
 };
