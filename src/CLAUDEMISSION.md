@@ -16,83 +16,124 @@ Work in the **auto-kj repo** unless a feature specifically needs the server.
 
 ---
 
-## YOUR FIRST JOB: Finish Auto Song Importer
+## COMPLETED FEATURES
 
-The pipeline (in order):
+### ✅ Auto Song Importer (#14) — done
+Full pipeline: watch → extract → volume normalize → artist cache → ID placeholder → rename → re-zip → delete loose → delete source
 
-```
-watched folder → .zip appears → extract .cdg+.mp3 → GStreamer volume normalize
-→ parse filename → artist cache check → ID placeholder → rename to KJ convention
-→ re-zip into clean archive → add to DB → delete loose files → delete source .zip
-```
-
-### Already built (3 files exist at src/):
-
-1. **`autozipper.h/.cpp`** — Extract zips to `AppData/Auto-KJ/imported/`, tracks in `imported_files` SQLite table, cleanup/remove methods
-2. **`volumenormalizer.h/.cpp`** — GStreamer peak analysis via `level` element + gain application via `audioamplify`
-3. **`artistcache.h/.cpp`** — DB-backed artist name learning (`artist_cache` table), auto-confirm after 3 matches
-
-### What still needs to be done:
-
-**A) Hook into dbupdater.cpp**
-- Add includes for `autozipper.h`, `volumenormalizer.h`, `artistcache.h`
-- In `addFilesToDatabase()`, before the existing .zip validation loop:
-  - If a file is `.zip` and has `.cdg+.mp3` inside: run the full pipeline
-  - After processing, point the DB path to the new re-zipped file
-  - Add `AutoZipper`, `VolumeNormalizer`, `ArtistCache` as member references or instantiate per-scan
-
-**B) ID Placeholder assignment**
-- If `KaraokeFileInfo::getSongId()` returns empty: query `SELECT MAX(CAST(SUBSTR(discid, 4) AS INTEGER)) FROM dbSongs WHERE discid LIKE 'UN-%'`
-- Assign `UN-{next}` (or start at 1 if none exist)
-- Store assigned ID in the `discid` field when adding to DB
-
-**C) Re-zip step**
-- Add `createArchive()` method to `mzarchive.h/.cpp`:
-  ```cpp
-  bool createArchive(const QString &sourceDir, const QString &outputPath, const QStringList &files);
-  ```
-  Uses bundled miniz `mz_zip_writer` API (already in the project as an include).
-- After normalization + rename: re-zip the `.cdg` + `.mp3` into a clean archive named `{ID} - {Artist} - {Song}.zip`
-
-**D) Auto-rename to KJ convention**
-- After extracting + normalizing, rename files to: `{discid} - {artist} - {title}.cdg` / `.mp3`
-- Use existing `KaraokeFilePatternResolver` infrastructure
-- Fall back to original base name if parsing fails
-
-**E) Settings UI**
-- Modify `dlgsettings.h/.cpp` to add an "Import Settings" tab:
-  - Enable/disable auto-extract
-  - Volume normalization toggle + target level slider
-  - Artist cache management (view/clear)
-  - Naming pattern selector (reuses existing pattern system)
-
-**F) Artist cache dialog**
-- When `ArtistCache::lookup()` returns empty for a pattern during import:
-  - Show a dialog: "Found new song: [filename]. Who is this artist?"
-  - Pre-populate artist from filename parse (if `KaraokeFileInfo::getArtist()` has a value)
-  - Text field + "Confirm" button
-  - Optionally: "Always this artist" checkbox (auto-silent immediately)
-  - Store confirmed mapping via `ArtistCache::confirm()`
-
-**G) Add new files to CMakeLists.txt**
-- Add `autozipper`, `volumenormalizer`, `artistcache` to the `SOURCE_FILES` list (around line 491-740)
+### ✅ New Singer Alerts (#9) — done (PR #2)
+Desktop tray notification + system beep when new singer joins rotation. Merged to master.
 
 ---
 
-## AFTER AUTO SONG IMPORTER: Continue Through Paul's Wishlist
-
-Build in this exact order:
-
-### #14 (done ✅) — Auto Song Importer (your first job above)
-
-### #9 — New Singer Integration
-- When a new singer requests for the first time, send a push notification to the KJ
-- Desktop app: tray notification + sound alert
-- Singer PWA shows welcome animation
-- Backend endpoint: `POST /venues/{id}/gigs/active/new-singer-alert`
-- Desktop app connects to server via WebSocket or SSE for real-time alerts
+## YOUR NEXT JOB: Rotation Style (#7)
 
 ### #7 — Rotation Style
+- **3 rotation types** configurable per gig:
+  - **Classic (1-per-round):** Each singer rotates one-at-a-time
+  - **Double (2-per-round):** Each singer gets 2 consecutive slots each rotation
+  - **Flex (mixed):** DJ can mix 1-per-round and 2-per-round singers
+- **Backend** (`auto-kj-server` repo): `rotation_style` field on `GigCreate` + `Gig` schema
+- **Desktop app** (`auto-kj` repo): rotation style dropdown in gig creation/edit dialog
+- **KJ Dashboard** (`auto-kj-server` frontend): rotation style display + per-singer override
+
+### Where to work:
+- Desktop C++ code: in the `auto-kj` repo
+- Backend Python/FastAPI + DJ dashboard: in the `auto-kj-server` repo
+
+### Key files for desktop:
+- `src/dlgmanagevenuesgigs.cpp/.h` — gig creation/edit dialog
+- `src/models/tablemodelkaraokesourcedirs.h` / `SourceDir` — existing settings model
+- `src/rotationfairnessengine.h/.cpp` — existing rotation logic, this is where the style behavior lives
+- `src/mainwindow.cpp` — main app logic
+
+### Key files for server:
+- `backend/app/schemas/venue.py` — GigCreate, Gig schemas
+- `backend/app/db/models.py` — Gig SQLAlchemy model
+- `frontend/apps/dj-dashboard/src/App.tsx` — DJ dashboard UI
+
+---
+
+## FEATURE QUEUE (build in this order)
+
+### #1 — Tip/Payment
+- Singers can tip the KJ or pay per song via the Singer PWA
+- Stripe integration (already exists in server for licensing)
+- Singer PWA: "Tip the KJ" button with preset amounts ($1/$2/$5)
+- Desktop app: shows incoming tips in real-time with sound effect
+- Backend: `tips` table, `POST /api/v1/singers/{id}/tip`, Stripe webhook for tips
+- Optional: "Song Payment" mode where KJ charges per song
+
+### #2 — Tip Shout-out
+- When a singer tips, show the tip + a shout-out message on a secondary display
+- Desktop app: "Tip Shout-Out" overlay window
+- Singer writes a shout-out message when tipping
+- Display shows: "🎉 [Singer Name] tipped $5! '[message]'"
+- Configurable: toggle on/off, display duration, sound effect
+- Designed to encourage more tips (social proof)
+
+### #15 — Priority Track Selection (enhance existing)
+- Already in brainstorm but NOT built: priority-based track selection
+- Manufacturer priority list (SC > PHM > KV > SBI)
+- Auto-selects best version when multiple tracks with same artist/title exist
+- Right-click override with sticky checkbox
+- UI: priority list editor in settings
+- Backend: not needed (pure desktop feature)
+
+### #10 — Break Music
+- Auto-play music between singers
+- Playlist mode: drag-drop or auto from folder
+- GStreamer handles crossfade between songs
+- Configurable: playlist folder, crossfade duration (0-5s), volume level
+- Settings tab in desktop app
+
+### #11 — Speed Slider
+- Real-time playback speed control (0.5x - 2.0x) using GStreamer `pitch` element
+- Slider in the main playback toolbar
+- Resets to 1.0x when changing songs
+- Save last speed per-song (optional)
+
+### #5 — Show Reports
+- Generate end-of-night report: songs played, singer stats, tips earned
+- Export as CSV/PDF
+- Desktop app: report dialog with preview
+- Backend: report generation endpoint
+- Stats: total songs, unique singers, most popular songs, total tips, show duration
+
+### #4 — Singer Notes
+- KJ can add notes to any singer profile
+- Notes stored in backend: `singer_notes` table
+- Desktop app: notes field when clicking a singer
+- Notes persist across shows
+- Example uses: "Allergic to peanuts — bring snacks", "Only drinks Diet Coke"
+
+### #3 — Blacklist/Whitelist
+- **Blacklist:** songs the KJ never wants played (blocked)
+- **Whitelist:** songs the KJ only wants played (everything else blocked)
+- Toggle per-gig: normal / whitelist-only / blacklist-only
+- Desktop app: song list context menu → "Add to Blacklist" / "Add to Whitelist"
+- Singer PWA: if whitelist mode, only show whitelisted songs; show "blocked" status for blacklisted
+
+### #12 — Show Intro
+- Startup screen/show intro when gig starts
+- Full-screen display: venue name, "Start Singing!", QR code for singer PWA
+- Configurable: background image/color, text content, duration
+- Desktop app: intro window on secondary display
+- Automatically shows when gig starts
+
+### #13 — Song Vote
+- Singers can upvote/downvote songs in the rotation
+- Singer PWA: thumbs up/down next to each song in queue
+- Desktop app: shows vote count next to each queue entry
+- KJ can sort queue by votes (higher = earlier)
+- Optional: only the rotating singer can vote (prevents vote manipulation)
+
+### #6 — Sub KJ Mode
+- Second KJ can log in as sub on an existing show
+- Sub KJ gets limited controls: rotation management, song search, break music
+- Full KJ retains master control
+- Backend: `sub_kj_pin` or invitation system
+- Desktop app: sub KJ login dialog, role-restricted UI
 - 3 rotation types configurable per gig:
   - **Classic (1-per-round):** Each singer rotates one-at-a-time
   - **Double (2-per-round):** Each singer gets 2 consecutive slots each rotation
