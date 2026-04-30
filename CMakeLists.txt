@@ -562,6 +562,9 @@ set(SOURCE_FILES
         src/karaokefileinfo.cpp
         src/karaokefilepatternresolver.cpp
         src/custompattern.cpp
+        src/autozipper.cpp
+        src/volumenormalizer.cpp
+        src/artistcache.cpp
         src/dlgeditsong.cpp
         src/soundfxbutton.cpp
         src/runguard/runguard.cpp
@@ -631,6 +634,9 @@ set(SOURCE_FILES
         src/karaokefileinfo.h
         src/karaokefilepatternresolver.h
         src/custompattern.h
+        src/autozipper.h
+        src/volumenormalizer.h
+        src/artistcache.h
         src/dlgeditsong.h
         src/soundfxbutton.h
         src/runguard/runguard.h

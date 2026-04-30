@@ -23,6 +23,8 @@
 #include <QFile>
 #include <QBuffer>
 #include <QTemporaryDir>
+#include <QDir>
+#include <QFileInfo>
 #include "src/miniz/miniz.h"
 #ifdef Q_OS_WIN
 #include <io.h>
@@ -276,6 +278,67 @@ bool MzArchive::findEntries()
     }
     mz_zip_reader_end(&archive);
     return false;
+}
+
+bool MzArchive::createArchive(const QString &sourceDir, const QString &outputPath, const QStringList &files, int compressionLevel)
+{
+    if (files.isEmpty()) {
+        m_logger->error("{} createArchive: no files specified", m_loggingPrefix);
+        return false;
+    }
+
+    mz_zip_archive zip;
+    memset(&zip, 0, sizeof(zip));
+
+    if (!mz_zip_writer_init_file(&zip, outputPath.toUtf8().constData(), 0)) {
+        m_logger->error("{} createArchive: failed to init writer for {}", m_loggingPrefix, outputPath.toStdString());
+        return false;
+    }
+
+    bool success = true;
+    for (const QString &fileName : files) {
+        QString fullPath = sourceDir + QDir::separator() + fileName;
+        QFileInfo fi(fullPath);
+        if (!fi.exists() || !fi.isFile()) {
+            m_logger->warn("{} createArchive: file not found: {}", m_loggingPrefix, fullPath.toStdString());
+            continue;
+        }
+
+        QFile file(fullPath);
+        if (!file.open(QIODevice::ReadOnly)) {
+            m_logger->error("{} createArchive: failed to read: {}", m_loggingPrefix, fullPath.toStdString());
+            success = false;
+            break;
+        }
+        QByteArray data = file.readAll();
+        file.close();
+
+        // CDG files are small — store only; audio files get compression
+        mz_uint level = (fileName.endsWith(".cdg", Qt::CaseInsensitive))
+                        ? static_cast<mz_uint>(MZ_BEST_SPEED)
+                        : static_cast<mz_uint>(compressionLevel);
+
+        if (!mz_zip_writer_add_mem(&zip, fileName.toUtf8().constData(), data.constData(), data.size(), level)) {
+            m_logger->error("{} createArchive: failed to add file: {}", m_loggingPrefix, fileName.toStdString());
+            success = false;
+            break;
+        }
+    }
+
+    if (!mz_zip_writer_finalize_archive(&zip)) {
+        m_logger->error("{} createArchive: failed to finalize archive", m_loggingPrefix);
+        success = false;
+    }
+
+    mz_zip_writer_end(&zip);
+
+    if (success) {
+        m_logger->info("{} Created archive: {} ({} files)", m_loggingPrefix, outputPath.toStdString(), files.size());
+    } else {
+        QFile::remove(outputPath);
+    }
+
+    return success;
 }
 
 

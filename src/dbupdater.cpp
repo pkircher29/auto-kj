@@ -27,11 +27,20 @@
 #include <QDirIterator>
 #include <QStandardPaths>
 #include <QApplication>
+#include <QRegularExpression>
 #include "mzarchive.h"
 #include "karaokefileinfo.h"
+#include "autozipper.h"
+#include "volumenormalizer.h"
+#include "artistcache.h"
+#include <memory>
 
 DbUpdater::DbUpdater(QObject *parent) :
-        QObject(parent) {
+    QObject(parent),
+    m_autoZipper(std::make_unique<AutoZipper>(this)),
+    m_volumeNormalizer(std::make_unique<VolumeNormalizer>(this)),
+    m_artistCache(std::make_unique<ArtistCache>(this))
+{
 }
 
 // Process files and do database update on the current directory.
@@ -138,7 +147,7 @@ void DbUpdater::addFilesToDatabase(const QList<QString> &files)
     if (files.empty())
         return;
 
-    emit stateChanged("Adding new files to database...")    ;
+    emit stateChanged("Adding new files to database...");
 
     QSqlQuery query;
     query.exec("PRAGMA synchronous=OFF");
@@ -176,14 +185,29 @@ void DbUpdater::addFilesToDatabase(const QList<QString> &files)
             continue;
         }
 #endif
-        parser.setFile(filePath);
+
+        // ── Auto-Import Pipeline for Zip Files ────────────────────────
+        // If this is a .zip file, run it through the auto-import pipeline
+        // which extracts, normalizes, identifies, renames, and re-zips.
+        QString effectivePath = filePath;
+        if (filePath.endsWith(".zip", Qt::CaseInsensitive)) {
+            effectivePath = processAutoImport(filePath);
+            if (effectivePath.isEmpty()) {
+                // processAutoImport already logged the error and recorded it in m_errors
+                continue;
+            }
+            // Update fileInfo to point to the cleaned zip
+            fileInfo.setFile(effectivePath);
+        }
+
+        parser.setFile(effectivePath);
 
         if (!m_settings.dbLazyLoadDurations())
             duration = parser.getDuration();
-        if (filePath.endsWith(".zip", Qt::CaseInsensitive) && !m_settings.dbSkipValidation()) {
-            archive.setArchiveFile(filePath);
+        if (effectivePath.endsWith(".zip", Qt::CaseInsensitive) && !m_settings.dbSkipValidation()) {
+            archive.setArchiveFile(effectivePath);
             if (!archive.isValidKaraokeFile()) {
-                m_errors.append(archive.getLastError() + ": " + filePath);
+                m_errors.append(archive.getLastError() + ": " + effectivePath);
                 continue;
             }
         }
@@ -191,7 +215,7 @@ void DbUpdater::addFilesToDatabase(const QList<QString> &files)
         query.bindValue(":artist", parser.getArtist());
         // If metadata parse wasn't successful, just put the filename in the title field
         query.bindValue(":title", (parser.parsedSuccessfully()) ? parser.getTitle() : fileInfo.completeBaseName());
-        query.bindValue(":path", filePath);
+        query.bindValue(":path", effectivePath);
         query.bindValue(":filename", fileInfo.completeBaseName());
         query.bindValue(":duration", duration);
         // searchString contains the metadata plus the basename to work around people's libraries that are
@@ -200,7 +224,6 @@ void DbUpdater::addFilesToDatabase(const QList<QString> &files)
         query.exec();
         if (shouldUpdateGui()) {
             emit progressChanged(loops, files.length());
-            //emit stateChanged(QString("Importing new files into the karaoke database... %1 of %2").arg(loops).arg(files.length()));
             QApplication::processEvents();
         }
     }
@@ -211,6 +234,109 @@ void DbUpdater::addFilesToDatabase(const QList<QString> &files)
     if (!m_errors.empty()) {
         emit errorsGenerated(m_errors);
     }
+}
+
+QString DbUpdater::processAutoImport(const QString &zipPath)
+{
+    // 1. Check if already imported (by mtime)
+    if (m_autoZipper->wasAlreadyImported(zipPath)) {
+        qInfo() << "[AutoImporter] Skipping already-imported zip:" << zipPath;
+        return zipPath;
+    }
+
+    emit progressMessage("Auto-importing: " + zipPath);
+    qInfo() << "[AutoImporter] Processing zip:" << zipPath;
+
+    // 2. Extract .cdg + .mp3 to temp dir
+    ExtractedFiles extracted = m_autoZipper->extract(zipPath);
+    if (!extracted.valid) {
+        m_errors.append("Auto-import failed to extract: " + zipPath);
+        return {};
+    }
+
+    // 3. Volume normalize the audio (if enabled via Settings)
+    QString normalizedAudio = extracted.audioPath;
+    if (!m_settings.dbSkipValidation()) {
+        QString normResult = m_volumeNormalizer->normalize(extracted.audioPath, -1.0);
+        if (!normResult.isEmpty()) {
+            normalizedAudio = normResult;
+        }
+    }
+
+    // 4. Identify artist/title from filename using KaraokeFileInfo
+    KaraokeFileInfo info(this);
+    info.setFile(extracted.cdgPath);  // Use .cdg path for name parsing (same basename)
+
+    QString artist = info.getArtist();
+    QString title = info.getTitle();
+    QString songId = info.getSongId();
+
+    // 4b. Check artist cache for the filename pattern
+    QFileInfo fi(extracted.cdgPath);
+    QString baseName = fi.completeBaseName();
+    QString cachedArtist = m_artistCache->lookup(baseName);
+    if (!cachedArtist.isEmpty()) {
+        artist = cachedArtist;
+    } else if (artist.isEmpty()) {
+        // Unknown artist — leave as filename-based guess or empty
+        // In practice the KJ will be prompted once; for now leave parsed value
+        // and it can be corrected later via the Edit Song dialog
+    }
+
+    // 5. If no ID, assign placeholder UN-1, UN-2 etc.
+    if (songId.isEmpty()) {
+        static int unCounter = 0;
+        unCounter++;
+        songId = QString("UN-%1").arg(unCounter);
+    }
+
+    // 6. Build new filenames: {ID} - {Artist} - {Song}.cdg/.mp3
+    QString safeArtist = artist;
+    QString safeTitle = title;
+    // Clean unsafe filename characters
+    safeArtist.replace(QRegularExpression("[/\\:*?\"<>|]"), "");
+    safeTitle.replace(QRegularExpression("[/\\:*?\"<>|]"), "");
+    if (safeArtist.trimmed().isEmpty()) safeArtist = "Unknown";
+    if (safeTitle.trimmed().isEmpty()) safeTitle = baseName;
+
+    QString baseRenamed = songId + " - " + safeArtist + " - " + safeTitle;
+    QString renamedCdg = baseRenamed + ".cdg";
+    QFileInfo audioFi(normalizedAudio);
+    QString renamedAudio = baseRenamed + "." + audioFi.suffix();
+
+    QString tempDir = extracted.destDir;
+    QString destCdg = tempDir + QDir::separator() + renamedCdg;
+    QString destAudio = tempDir + QDir::separator() + renamedAudio;
+
+    // Rename the files
+    QFile::rename(extracted.cdgPath, destCdg);
+    QFile::rename(normalizedAudio, destAudio);
+
+    // 7. Re-zip into a clean archive in the same directory as the original zip
+    QFileInfo originalFi(zipPath);
+    QString outputZip = originalFi.absolutePath() + QDir::separator() + baseRenamed + ".zip";
+
+    QStringList zipFiles = { renamedCdg, renamedAudio };
+    MzArchive archiver(this);
+    if (!archiver.createArchive(tempDir, outputZip, zipFiles)) {
+        m_errors.append("Auto-import failed to re-zip: " + zipPath);
+        m_autoZipper->cleanupExtracted(extracted);
+        return {};
+    }
+
+    // 8. Register the import in the DB
+    m_autoZipper->markImported(zipPath);
+
+    // 9. Clean up temp files
+    m_autoZipper->cleanupExtracted(extracted);
+
+    // 10. Remove the original source zip
+    m_autoZipper->removeSourceZip(zipPath);
+
+    qInfo() << "[AutoImporter] Created cleaned archive:" << outputZip;
+    emit progressMessage("Auto-imported: " + zipPath + " -> " + outputZip);
+
+    return outputZip;
 }
 
 int DbUpdater::missingFilesCount()

@@ -29,6 +29,10 @@
 #include <array>
 
 
+class AutoZipper;
+class VolumeNormalizer;
+class ArtistCache;
+
 class DbUpdater : public QObject
 {
     Q_OBJECT
@@ -103,9 +107,19 @@ private:
     QVector<int> m_missingFilesSongIds;
     QElapsedTimer m_guiUpdateTimer;
 
+    // Auto-import pipeline members
+    std::unique_ptr<AutoZipper> m_autoZipper;
+    std::unique_ptr<VolumeNormalizer> m_volumeNormalizer;
+    std::unique_ptr<ArtistCache> m_artistCache;
+
     void setPaths(const QList<QString> &paths);
     void fixMissingFiles(QVector<DbSongRecord> &filesMissingOnDisk, QStringList &newFilesOnDisk);
     bool shouldUpdateGui();
+
+    /// Process a karaoke zip through the auto-import pipeline:
+    /// extract → normalize → identify → rename → re-zip → update path
+    /// Returns the final .zip path to insert into DB, or empty on failure.
+    QString processAutoImport(const QString &zipPath);
 
 public:
 

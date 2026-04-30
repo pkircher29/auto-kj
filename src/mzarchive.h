@@ -48,6 +48,14 @@ public:
     bool isValidKaraokeFile();
     QString getLastError();
 
+    /// Create a new zip archive from a list of files.
+    /// @param sourceDir   Directory containing the files to zip (paths are relative to this).
+    /// @param outputPath  Full path for the output .zip file.
+    /// @param files       List of filenames (basename only, relative to sourceDir) to include.
+    /// @param compressionLevel 0 (store) to 9 (max), default 6.
+    /// @return true on success, false on failure.
+    bool createArchive(const QString &sourceDir, const QString &outputPath, const QStringList &files, int compressionLevel = 6);
+
 private:
     QString archiveFile;
     QString audioExt;
