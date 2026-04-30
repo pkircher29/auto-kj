@@ -148,12 +148,18 @@ void MainWindow::setupShortcuts() {
         if (curSingerId == -1)
             curPos = static_cast<int>(m_rotModel.singerCount() - 1);
         int loops = 0;
+        // For Double/Flex: include current singer in scan if their turn isn't complete
+        bool skipAdvance = (curSingerId != -1) && !m_fairnessEngine.isSingerTurnComplete(curSingerId);
         while ((nextSongPath == "") && (!empty)) {
             if (loops > m_rotModel.singerCount()) {
                 empty = true;
             } else {
-                if (++curPos >= m_rotModel.singerCount()) {
-                    curPos = 0;
+                if (skipAdvance) {
+                    skipAdvance = false;
+                } else {
+                    if (++curPos >= m_rotModel.singerCount()) {
+                        curPos = 0;
+                    }
                 }
                 nextSinger = m_rotModel.getSingerAtPosition(curPos);
                 nextSongPath = nextSinger.nextSongPath();
@@ -201,12 +207,18 @@ void MainWindow::setupShortcuts() {
         if (curSingerId == -1)
             curPos = static_cast<int>(m_rotModel.singerCount() - 1);
         int loops = 0;
+        // For Double/Flex: include current singer in scan if their turn isn't complete
+        bool skipAdvance = (curSingerId != -1) && !m_fairnessEngine.isSingerTurnComplete(curSingerId);
         while ((nextSongPath == "") && (!empty)) {
             if (loops > m_rotModel.singerCount()) {
                 empty = true;
             } else {
-                if (++curPos >= m_rotModel.singerCount()) {
-                    curPos = 0;
+                if (skipAdvance) {
+                    skipAdvance = false;
+                } else {
+                    if (++curPos >= m_rotModel.singerCount()) {
+                        curPos = 0;
+                    }
                 }
                 nextSinger = m_rotModel.getSingerAtPosition(curPos);
                 nextSongPath = nextSinger.nextSongPath();
@@ -2387,13 +2399,19 @@ void MainWindow::karaokeMediaBackend_stateChanged(const MediaBackend::State &sta
                     curPos = m_curSingerOriginalPosition;
                 if (curSingerId == -1)
                     curPos = static_cast<int>(m_rotModel.singerCount() - 1);
+                // For Double/Flex: include current singer in scan if their turn isn't complete
+                bool skipAdvance = (curSingerId != -1) && !m_fairnessEngine.isSingerTurnComplete(curSingerId);
                 int loops = 0;
                 while ((nextSongPath == "") && (!empty)) {
                     if (loops > m_rotModel.singerCount()) {
                         empty = true;
                     } else {
-                        if (++curPos >= m_rotModel.singerCount()) {
-                            curPos = 0;
+                        if (skipAdvance) {
+                            skipAdvance = false;
+                        } else {
+                            if (++curPos >= m_rotModel.singerCount()) {
+                                curPos = 0;
+                            }
                         }
                         nextSinger = m_rotModel.getSingerAtPosition(curPos);
                         nextSongPath = nextSinger.nextSongPath();
@@ -2683,6 +2701,23 @@ void MainWindow::tableViewRotationContextMenuRequested(const QPoint &pos) {
             contextMenu.addAction("Set as top of rotation", [&]() {
                 m_rotModel.setRotationTopSingerId(m_rtClickRotationSingerId);
             });
+            contextMenu.addSeparator();
+            if (m_fairnessEngine.rotationStyle() == RotationFairnessEngine::Flex) {
+                QMenu *rotStyleMenu = contextMenu.addMenu("Rotation Style");
+                auto *classicAction = rotStyleMenu->addAction("Classic (1 per round)");
+                auto *doubleAction = rotStyleMenu->addAction("Double (2 per round)");
+                RotationFairnessEngine::RotationStyle currentStyle = m_fairnessEngine.singerRotationStyle(m_rtClickRotationSingerId);
+                classicAction->setCheckable(true);
+                doubleAction->setCheckable(true);
+                classicAction->setChecked(currentStyle == RotationFairnessEngine::Classic);
+                doubleAction->setChecked(currentStyle == RotationFairnessEngine::Double);
+                connect(classicAction, &QAction::triggered, [this]() {
+                    m_fairnessEngine.setSingerRotationStyle(m_rtClickRotationSingerId, RotationFairnessEngine::Classic);
+                });
+                connect(doubleAction, &QAction::triggered, [this]() {
+                    m_fairnessEngine.setSingerRotationStyle(m_rtClickRotationSingerId, RotationFairnessEngine::Double);
+                });
+            }
         }
         contextMenu.exec(QCursor::pos());
     }

@@ -272,6 +272,7 @@ void AutoKJServerAPI::pushGigSettings()
     data["no_show_timeout_seconds"] = m_settings.noShowTimeoutSeconds();
     data["line_jump_enabled"] = m_settings.lineJumpEnabled();
     data["geofence_enabled"] = m_settings.venueGeofenceEnabled();
+    data["rotation_style"] = m_settings.rotationStyle();
     sendEvent("kj:gig_settings", data);
 }
 

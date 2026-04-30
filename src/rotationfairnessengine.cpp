@@ -53,15 +53,7 @@ bool RotationFairnessEngine::isSingerTurnComplete(int singerId) const {
     int style = effectiveStyleForSinger(singerId);
     if (style == Classic)
         return true; // Classic: always complete after 1 song
-    if (style == Double) {
-        int songsThisTurn = m_singerSongsThisTurn.value(singerId, 0);
-        return songsThisTurn >= 2;
-    }
-    // Flex: check per-singer override
-    auto it = m_singerRotationStyles.constFind(singerId);
-    RotationStyle perSingerStyle = (it != m_singerRotationStyles.constEnd()) ? *it : Classic;
-    if (perSingerStyle == Classic)
-        return true;
+    // Double (or per-singer Double in Flex mode): complete after 2 songs
     int songsThisTurn = m_singerSongsThisTurn.value(singerId, 0);
     return songsThisTurn >= 2;
 }
@@ -123,9 +115,9 @@ QString RotationFairnessEngine::duplicateTurnWarning(const QString &singerName) 
 void RotationFairnessEngine::onSongPlayed(int primarySingerId, const QStringList &cosingers) {
     markSungThisRound(primarySingerId);
 
-    // Track songs-sung-this-turn for Double/Flex modes
+    // Track songs-sung-this-turn for Double mode (and per-singer Double in Flex)
     int style = effectiveStyleForSinger(primarySingerId);
-    if (style == Double || style == Flex) {
+    if (style == Double) {
         m_singerSongsThisTurn[primarySingerId] = m_singerSongsThisTurn.value(primarySingerId, 0) + 1;
         qInfo("[FairnessEngine] Singer %d songs this turn: %d", primarySingerId,
               m_singerSongsThisTurn.value(primarySingerId, 0));
