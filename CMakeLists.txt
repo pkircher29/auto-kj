@@ -51,6 +51,7 @@ if (AUTOKJ_USE_QTKEYCHAIN)
                     "BUILD_WITH_QT6 OFF"
                     "BUILD_TEST_APPLICATION OFF"
                     "BUILD_TRANSLATIONS OFF"
+                    "BUILD_SHARED_LIBS OFF"
         )
     endif ()
     if (TARGET qt5keychain)
