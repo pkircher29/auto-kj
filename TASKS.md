@@ -13,7 +13,7 @@
 - [ ] Deploy latest auto-kj-server to VPS (blocked: VPS unreachable)
 - [ ] Set up email for paul@kircherentertainment.com or similar contact
 - [ ] Marketing: start getting users (communities: r/karaoke, Karaoke Scene forums, Facebook KJ groups)
-- [ ] Clean remaining stale old-domain links in desktop app if any remain
+- [x] Clean remaining stale old-domain links in desktop app if any remain
 
 ## Later
 - [ ] Improve release automation so tag/release is less manual
